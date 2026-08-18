@@ -11,6 +11,7 @@ still needs your sign-off.
 
 ```
 backend/    FastAPI service — the whole Phase 1 API surface, tested and working
+frontend/   Next.js web portal — vendor/buyer/cooperative/admin, plus public PFZ & price pages
 mobile/     Flutter app plan (SDK not installed in this environment — see mobile/README.md)
 docs/       Decisions log
 ```
@@ -38,6 +39,23 @@ All 4 tests pass as of this commit — they exercise the full Phase 1 flow end t
 end: OTP → role onboarding (all 4 roles) → KYC gate blocking catch logs until
 verified → catch logging → PFZ fetch → marketplace product + RFQ → price index
 with 7-day trend.
+
+## Frontend — running it
+
+Backend must already be running on port 8000 (above). Then:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open http://localhost:3000. Full page list and gaps are in `frontend/README.md`.
+This covers the vendor, buyer/exporter, cooperative, and admin/field-agent
+roles, plus public PFZ and price pages — **not** the fisherman experience,
+which is the mobile app. `npm run build` passes clean (TypeScript + ESLint,
+zero errors); backend + frontend were booted together and smoke-tested with
+CORS confirmed working.
 
 ## What's implemented (maps to the Phase 1 doc)
 
