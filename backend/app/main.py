@@ -1,9 +1,17 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import Base, engine
 from app.api import auth, onboarding, catalog, pfz, harbour, catchlog
+
+# Without this, app-level loggers (e.g. app.services.otp_service) sit at the
+# default WARNING level and their .info() calls — including the dev-stub OTP
+# code — never print anywhere, even though nothing errors. Uvicorn configures
+# its own loggers but not arbitrary ones like "nauka.otp".
+logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
 
 Base.metadata.create_all(bind=engine)
 

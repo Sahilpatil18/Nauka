@@ -18,7 +18,7 @@ _otp_store: dict[str, tuple[str, datetime]] = {}
 def send_otp(phone_number: str) -> None:
     code = f"{random.randint(0, 999999):06d}"
     _otp_store[phone_number] = (code, datetime.utcnow() + timedelta(minutes=_OTP_TTL_MINUTES))
-    logger.info("OTP for %s is %s (dev stub — not actually sent)", phone_number, code)
+    logger.info("OTP for %s is %s (dev stub - not actually sent)", phone_number, code)
 
 
 def verify_otp(phone_number: str, code: str) -> bool:
