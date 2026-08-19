@@ -2,12 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { getPriceIndex, PriceIndexEntry, ApiError } from "@/lib/api";
+import { Card } from "@/components/ui/Card";
+import { ErrorText, HelpText } from "@/components/ui/Field";
+import { EmptyState, LoadingRows } from "@/components/ui/EmptyState";
+import Badge from "@/components/ui/Badge";
 
-const TREND_STYLE: Record<string, string> = {
-  rising: "text-green-700 bg-green-50 border-green-200",
-  falling: "text-red-700 bg-red-50 border-red-200",
-  flat: "text-gray-600 bg-gray-50 border-gray-200",
-  insufficient_data: "text-gray-400 bg-gray-50 border-gray-200",
+const TREND_TONE: Record<string, "green" | "red" | "slate"> = {
+  rising: "green",
+  falling: "red",
+  flat: "slate",
+  insufficient_data: "slate",
 };
 
 const TREND_ARROW: Record<string, string> = {
@@ -30,53 +34,64 @@ export default function PricesPage() {
   }, []);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">Harbour Price Index</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Latest wholesale price per species per harbour, with a 7-day trend. Manually entered
-          by field agents/admins in Phase 1 (decision #5) — not a live feed yet.
+        <h1 className="text-xl font-semibold text-slate-900">Harbour Price Index</h1>
+        <p className="text-sm text-slate-500 mt-1">
+          Latest wholesale price per species per harbour, with a 7-day trend.
         </p>
       </div>
 
-      {loading && <p className="text-sm text-gray-500">Loading...</p>}
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {!loading && entries.length === 0 && (
-        <p className="text-sm text-gray-500">No price records entered yet.</p>
-      )}
+      <HelpText>
+        Manually entered by field agents/admins in Phase 1 (decision #5) — not a live feed yet.
+      </HelpText>
 
-      <div className="bg-white border rounded-lg overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-left text-gray-500">
-            <tr>
-              <th className="px-4 py-2">Species</th>
-              <th className="px-4 py-2">Harbour</th>
-              <th className="px-4 py-2">Date</th>
-              <th className="px-4 py-2">Min ₹/kg</th>
-              <th className="px-4 py-2">Max ₹/kg</th>
-              <th className="px-4 py-2">Avg ₹/kg</th>
-              <th className="px-4 py-2">Trend</th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.map((e) => (
-              <tr key={`${e.species}-${e.harbour_id}`} className="border-t">
-                <td className="px-4 py-2 font-medium">{e.species}</td>
-                <td className="px-4 py-2">{e.harbour_name}</td>
-                <td className="px-4 py-2">{e.latest_date}</td>
-                <td className="px-4 py-2">{e.min_price_per_kg}</td>
-                <td className="px-4 py-2">{e.max_price_per_kg}</td>
-                <td className="px-4 py-2">{e.avg_price_per_kg}</td>
-                <td className="px-4 py-2">
-                  <span className={`inline-block border rounded px-2 py-0.5 text-xs ${TREND_STYLE[e.trend_7day]}`}>
-                    {TREND_ARROW[e.trend_7day]} {e.trend_7day.replace("_", " ")}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {error && <ErrorText>{error}</ErrorText>}
+
+      {loading ? (
+        <LoadingRows count={5} />
+      ) : entries.length === 0 ? (
+        <Card>
+          <EmptyState title="No price records entered yet" />
+        </Card>
+      ) : (
+        <Card padded={false} className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[640px]">
+              <thead className="bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">
+                <tr>
+                  <th className="px-4 sm:px-5 py-3">Species</th>
+                  <th className="px-4 sm:px-5 py-3">Harbour</th>
+                  <th className="px-4 sm:px-5 py-3">Date</th>
+                  <th className="px-4 sm:px-5 py-3 text-right">Min ₹/kg</th>
+                  <th className="px-4 sm:px-5 py-3 text-right">Max ₹/kg</th>
+                  <th className="px-4 sm:px-5 py-3 text-right">Avg ₹/kg</th>
+                  <th className="px-4 sm:px-5 py-3">Trend</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {entries.map((e) => (
+                  <tr key={`${e.species}-${e.harbour_id}`} className="hover:bg-slate-50/60">
+                    <td className="px-4 sm:px-5 py-3 font-medium text-slate-900">{e.species}</td>
+                    <td className="px-4 sm:px-5 py-3 text-slate-600">{e.harbour_name}</td>
+                    <td className="px-4 sm:px-5 py-3 text-slate-500">{e.latest_date}</td>
+                    <td className="px-4 sm:px-5 py-3 text-right text-slate-600 tabular-nums">{e.min_price_per_kg}</td>
+                    <td className="px-4 sm:px-5 py-3 text-right text-slate-600 tabular-nums">{e.max_price_per_kg}</td>
+                    <td className="px-4 sm:px-5 py-3 text-right font-medium text-slate-900 tabular-nums">
+                      {e.avg_price_per_kg}
+                    </td>
+                    <td className="px-4 sm:px-5 py-3">
+                      <Badge tone={TREND_TONE[e.trend_7day]}>
+                        {TREND_ARROW[e.trend_7day]} {e.trend_7day.replace("_", " ")}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

@@ -4,6 +4,10 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/session";
 import { Category, Product, listCategories, listProducts, createRfq, ApiError } from "@/lib/api";
+import { Card } from "@/components/ui/Card";
+import { ErrorText } from "@/components/ui/Field";
+import Button from "@/components/ui/Button";
+import { EmptyState, LoadingRows } from "@/components/ui/EmptyState";
 
 export default function BuyerDashboardPage() {
   const { user, loading } = useSession();
@@ -12,6 +16,7 @@ export default function BuyerDashboardPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [categoryFilter, setCategoryFilter] = useState("");
+  const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState("");
   const [rfqSentFor, setRfqSentFor] = useState<string | null>(null);
 
@@ -31,9 +36,12 @@ export default function BuyerDashboardPage() {
         router.push("/buyer/onboarding");
         return;
       }
+      setDataLoading(true);
       // Standard fetch-on-mount pattern; see lib/session.tsx for why this rule is disabled here.
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      refresh().catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load"));
+      refresh()
+        .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load"))
+        .finally(() => setDataLoading(false));
     }
   }, [loading, user, router, refresh]);
 
@@ -51,41 +59,58 @@ export default function BuyerDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">Sourcing catalog</h1>
+      <div>
+        <h1 className="text-xl font-semibold text-slate-900">Sourcing catalog</h1>
+        <p className="text-sm text-slate-500 mt-1">Browse vendor listings and request quotes.</p>
+      </div>
 
-      <div className="flex gap-3 items-center">
-        <label className="text-sm font-medium">Category</label>
+      <div className="flex items-center gap-3">
+        <label htmlFor="categoryFilter" className="text-sm font-medium text-slate-700 shrink-0">
+          Category
+        </label>
         <select
+          id="categoryFilter"
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
-          className="border rounded px-3 py-2 text-sm"
+          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
         >
           <option value="">All categories</option>
           {categories.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
           ))}
         </select>
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <ErrorText>{error}</ErrorText>}
 
-      <div className="grid sm:grid-cols-2 gap-4">
-        {products.map((p) => (
-          <div key={p.id} className="bg-white border rounded-lg p-4">
-            <h2 className="font-medium">{p.name}</h2>
-            {p.port_location && <p className="text-sm text-gray-500">{p.port_location}</p>}
-            {p.spec_summary && <p className="text-sm text-gray-600 mt-1">{p.spec_summary}</p>}
-            <button
-              onClick={() => handleRequestQuote(p.id)}
-              disabled={rfqSentFor === p.id}
-              className="mt-3 text-sm bg-blue-600 text-white rounded px-3 py-1.5 hover:bg-blue-700 disabled:opacity-50"
-            >
-              {rfqSentFor === p.id ? "Quote requested" : "Request quote"}
-            </button>
-          </div>
-        ))}
-        {products.length === 0 && <p className="text-sm text-gray-500">No products listed yet.</p>}
-      </div>
+      {dataLoading ? (
+        <LoadingRows count={4} />
+      ) : products.length === 0 ? (
+        <Card>
+          <EmptyState title="No products listed yet" description="Check back once vendors add their catalog." />
+        </Card>
+      ) : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {products.map((p) => (
+            <Card key={p.id} className="flex flex-col">
+              <h2 className="font-medium text-slate-900">{p.name}</h2>
+              {p.port_location && <p className="text-sm text-slate-500">{p.port_location}</p>}
+              {p.spec_summary && <p className="text-sm text-slate-600 mt-2 flex-1">{p.spec_summary}</p>}
+              <Button
+                size="sm"
+                onClick={() => handleRequestQuote(p.id)}
+                disabled={rfqSentFor === p.id}
+                className="mt-4 w-fit"
+                variant={rfqSentFor === p.id ? "secondary" : "primary"}
+              >
+                {rfqSentFor === p.id ? "Quote requested" : "Request quote"}
+              </Button>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

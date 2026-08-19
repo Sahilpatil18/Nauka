@@ -25,10 +25,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-gray-50 text-gray-900">
+      <body className="min-h-full flex flex-col bg-slate-50 text-slate-900">
         <SessionProvider>
           <Nav />
-          <main className="flex-1 max-w-5xl w-full mx-auto px-4 py-6">{children}</main>
+          <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">{children}</main>
+          <footer className="border-t border-slate-200 py-6">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 text-xs text-slate-400">
+              Nauka — Phase 1 · Maharashtra marine sector platform
+            </div>
+          </footer>
         </SessionProvider>
       </body>
     </html>

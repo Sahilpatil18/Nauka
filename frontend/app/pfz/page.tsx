@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { getPfz, PFZAdvisory, ApiError } from "@/lib/api";
+import { Card } from "@/components/ui/Card";
+import { ErrorText, HelpText } from "@/components/ui/Field";
+import { EmptyState, LoadingRows } from "@/components/ui/EmptyState";
+import Badge from "@/components/ui/Badge";
 
 export default function PfzPage() {
   const [advisories, setAdvisories] = useState<PFZAdvisory[]>([]);
@@ -16,40 +20,69 @@ export default function PfzPage() {
   }, []);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">Potential Fishing Zones</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          INCOIS PFZ passthrough with SST / chlorophyll overlays. No scoring model yet — this is
-          the raw advisory list (decision #4).
+        <h1 className="text-xl font-semibold text-slate-900">Potential Fishing Zones</h1>
+        <p className="text-sm text-slate-500 mt-1">
+          INCOIS PFZ advisories with sea surface temperature and chlorophyll overlays.
         </p>
       </div>
 
-      {loading && <p className="text-sm text-gray-500">Loading...</p>}
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      <HelpText>
+        No scoring model yet — this is the raw advisory passthrough (decision #4 in
+        docs/phase1_decisions.md).
+      </HelpText>
 
-      <div className="grid sm:grid-cols-2 gap-4">
-        {advisories.map((a) => (
-          <div key={a.id} className="bg-white border rounded-lg p-4">
-            <h2 className="font-medium">{a.reference_point || `${a.latitude}, ${a.longitude}`}</h2>
-            <p className="text-xs text-gray-400">
-              {a.latitude.toFixed(2)}, {a.longitude.toFixed(2)} · source: {a.source}
-            </p>
-            <div className="mt-2 text-sm text-gray-700 space-y-1">
-              {a.sea_surface_temp_c != null && <p>SST: {a.sea_surface_temp_c}°C</p>}
-              {a.chlorophyll_mg_m3 != null && <p>Chlorophyll: {a.chlorophyll_mg_m3} mg/m³</p>}
-            </div>
-            {a.alert_message && (
-              <p className="mt-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-                {a.alert_severity}: {a.alert_message}
+      {error && <ErrorText>{error}</ErrorText>}
+
+      {loading ? (
+        <LoadingRows count={4} />
+      ) : advisories.length === 0 ? (
+        <Card>
+          <EmptyState title="No advisories available" />
+        </Card>
+      ) : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {advisories.map((a) => (
+            <Card key={a.id}>
+              <div className="flex items-start justify-between gap-2">
+                <h2 className="font-medium text-slate-900 leading-snug">
+                  {a.reference_point || `${a.latitude}, ${a.longitude}`}
+                </h2>
+                {a.alert_severity && <Badge tone="amber">{a.alert_severity}</Badge>}
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                {a.latitude.toFixed(2)}, {a.longitude.toFixed(2)} · {a.source}
               </p>
-            )}
-            <p className="text-xs text-gray-400 mt-2">
-              Valid {new Date(a.valid_from).toLocaleDateString()} – {new Date(a.valid_to).toLocaleDateString()}
-            </p>
-          </div>
-        ))}
-      </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                {a.sea_surface_temp_c != null && (
+                  <div className="rounded-lg bg-slate-50 px-3 py-2">
+                    <p className="text-xs text-slate-500">SST</p>
+                    <p className="text-sm font-semibold text-slate-900">{a.sea_surface_temp_c}°C</p>
+                  </div>
+                )}
+                {a.chlorophyll_mg_m3 != null && (
+                  <div className="rounded-lg bg-slate-50 px-3 py-2">
+                    <p className="text-xs text-slate-500">Chlorophyll</p>
+                    <p className="text-sm font-semibold text-slate-900">{a.chlorophyll_mg_m3} mg/m³</p>
+                  </div>
+                )}
+              </div>
+
+              {a.alert_message && (
+                <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
+                  {a.alert_message}
+                </div>
+              )}
+
+              <p className="text-xs text-slate-400 mt-4 pt-3 border-t border-slate-100">
+                Valid {new Date(a.valid_from).toLocaleDateString()} – {new Date(a.valid_to).toLocaleDateString()}
+              </p>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

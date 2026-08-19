@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/session";
 import { upsertCooperativeProfile, listHarbours, Harbour, ApiError } from "@/lib/api";
+import { Card, CardHeader } from "@/components/ui/Card";
+import { Label, inputClass, ErrorText, SuccessText, HelpText } from "@/components/ui/Field";
+import Button from "@/components/ui/Button";
 
 export default function CooperativeOnboardingPage() {
   const { user, loading } = useSession();
@@ -55,59 +58,68 @@ export default function CooperativeOnboardingPage() {
   };
 
   return (
-    <div className="max-w-lg bg-white border rounded-lg p-6 space-y-6">
-      <h1 className="text-xl font-semibold">Cooperative society profile</h1>
-      <p className="text-sm text-gray-500">
+    <div className="max-w-lg mx-auto space-y-4">
+      <div>
+        <h1 className="text-xl font-semibold text-slate-900">Cooperative society profile</h1>
+      </div>
+
+      <HelpText>
         Bulk catch aggregation reporting and group equipment purchasing aren&apos;t built in the
         API yet — this is profile setup only.
-      </p>
+      </HelpText>
 
-      <form onSubmit={handleSave} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">Society name</label>
-          <input required value={societyName} onChange={(e) => setSocietyName(e.target.value)} className="w-full border rounded px-3 py-2" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Society registration no.</label>
-          <input value={registrationNo} onChange={(e) => setRegistrationNo(e.target.value)} className="w-full border rounded px-3 py-2" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Officer-in-charge</label>
-          <input value={officerName} onChange={(e) => setOfficerName(e.target.value)} className="w-full border rounded px-3 py-2" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Harbour hub</label>
-          <select value={harbourId} onChange={(e) => setHarbourId(e.target.value)} className="w-full border rounded px-3 py-2">
-            {harbours.map((h) => (
-              <option key={h.id} value={h.id}>{h.name}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Active registered fleet count</label>
-          <input
-            type="number"
-            min={0}
-            value={fleetCount}
-            onChange={(e) => setFleetCount(Number(e.target.value))}
-            className="w-full border rounded px-3 py-2"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Primary catch varieties</label>
-          <input value={varieties} onChange={(e) => setVarieties(e.target.value)} className="w-full border rounded px-3 py-2" />
-        </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <button
-          type="submit"
-          disabled={submitting}
-          className="bg-blue-600 text-white rounded px-4 py-2 hover:bg-blue-700 disabled:opacity-50"
-        >
-          Save profile
-        </button>
-      </form>
+      <Card>
+        <CardHeader title="Society details" />
+        <form onSubmit={handleSave} className="space-y-4">
+          <div>
+            <Label htmlFor="societyName">Society name</Label>
+            <input id="societyName" required value={societyName} onChange={(e) => setSocietyName(e.target.value)} className={inputClass} />
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="registrationNo" hint="optional">Registration no.</Label>
+              <input id="registrationNo" value={registrationNo} onChange={(e) => setRegistrationNo(e.target.value)} className={inputClass} />
+            </div>
+            <div>
+              <Label htmlFor="officerName" hint="optional">Officer-in-charge</Label>
+              <input id="officerName" value={officerName} onChange={(e) => setOfficerName(e.target.value)} className={inputClass} />
+            </div>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="harbour">Harbour hub</Label>
+              <select id="harbour" value={harbourId} onChange={(e) => setHarbourId(e.target.value)} className={inputClass}>
+                {harbours.map((h) => (
+                  <option key={h.id} value={h.id}>
+                    {h.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="fleetCount">Active fleet count</Label>
+              <input
+                id="fleetCount"
+                type="number"
+                min={0}
+                value={fleetCount}
+                onChange={(e) => setFleetCount(Number(e.target.value))}
+                className={inputClass}
+              />
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="varieties" hint="optional">Primary catch varieties</Label>
+            <input id="varieties" value={varieties} onChange={(e) => setVarieties(e.target.value)} className={inputClass} />
+          </div>
+          {error && <ErrorText>{error}</ErrorText>}
+          <Button type="submit" loading={submitting}>
+            Save profile
+          </Button>
+        </form>
+      </Card>
 
-      {saved && <p className="text-sm text-green-700">Profile saved.</p>}
+      {saved && <SuccessText>Profile saved.</SuccessText>}
     </div>
   );
 }

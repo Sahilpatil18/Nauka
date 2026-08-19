@@ -4,12 +4,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { requestOtp, verifyOtp, ApiError, UserRole } from "@/lib/api";
 import { useSession } from "@/lib/session";
+import { Card } from "@/components/ui/Card";
+import { Label, inputClass, ErrorText, HelpText } from "@/components/ui/Field";
+import Button from "@/components/ui/Button";
 
-const ROLES: { value: UserRole; label: string }[] = [
-  { value: "vendor", label: "Equipment & Gear Vendor" },
-  { value: "buyer", label: "Exporter / B2B Buyer" },
-  { value: "cooperative", label: "Fisheries Cooperative Society" },
-  { value: "admin", label: "Admin / Field Agent" },
+const ROLES: { value: UserRole; label: string; description: string }[] = [
+  { value: "vendor", label: "Equipment & Gear Vendor", description: "List and sell marine equipment" },
+  { value: "buyer", label: "Exporter / B2B Buyer", description: "Source from vendors, request quotes" },
+  { value: "cooperative", label: "Fisheries Cooperative Society", description: "Register your society" },
+  { value: "admin", label: "Admin / Field Agent", description: "Enter harbour price data" },
 ];
 
 const ROLE_HOME: Record<string, string> = {
@@ -62,85 +65,92 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="max-w-sm mx-auto bg-white border rounded-lg p-6">
-      <h1 className="text-xl font-semibold mb-4">Log in</h1>
-
-      {step === "phone" && (
-        <form onSubmit={handleRequestOtp} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Phone number</label>
-            <input
-              type="tel"
-              required
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+919800000000"
-              className="w-full border rounded px-3 py-2"
-            />
+    <div className="min-h-[70vh] flex items-center justify-center">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-6">
+          <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-teal-600 text-white">
+            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 17c1.5 1.5 3.5 1.5 5 0s3.5-1.5 5 0 3.5 1.5 5 0" strokeLinecap="round" />
+              <path d="M5 17V9l6-4 6 4v8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">I am a...</label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as UserRole)}
-              className="w-full border rounded px-3 py-2"
-            >
-              {ROLES.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500 mt-1">
-              Fishermen use the mobile app, not this web portal.
-            </p>
-          </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full bg-blue-600 text-white rounded px-3 py-2 hover:bg-blue-700 disabled:opacity-50"
-          >
-            {submitting ? "Sending..." : "Send OTP"}
-          </button>
-        </form>
-      )}
+          <h1 className="text-xl font-semibold text-slate-900">Log in to Nauka</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            {step === "phone" ? "Enter your phone number to get started" : `Code sent to ${phone}`}
+          </p>
+        </div>
 
-      {step === "otp" && (
-        <form onSubmit={handleVerify} className="space-y-4">
-          {devNote && (
-            <p className="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded px-3 py-2">
-              Dev mode: {devNote}. Check the backend server logs for the 6-digit code.
-            </p>
+        <Card>
+          {step === "phone" && (
+            <form onSubmit={handleRequestOtp} className="space-y-4">
+              <div>
+                <Label htmlFor="phone">Phone number</Label>
+                <input
+                  id="phone"
+                  type="tel"
+                  required
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+919800000000"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <Label htmlFor="role">I am a...</Label>
+                <select
+                  id="role"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value as UserRole)}
+                  className={inputClass}
+                >
+                  {ROLES.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-400 mt-1.5">
+                  Fishermen use the mobile app, not this web portal.
+                </p>
+              </div>
+              {error && <ErrorText>{error}</ErrorText>}
+              <Button type="submit" loading={submitting} fullWidth>
+                {submitting ? "Sending..." : "Send OTP"}
+              </Button>
+            </form>
           )}
-          <div>
-            <label className="block text-sm font-medium mb-1">Enter OTP</label>
-            <input
-              type="text"
-              required
-              maxLength={6}
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              className="w-full border rounded px-3 py-2 tracking-widest"
-            />
-          </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full bg-blue-600 text-white rounded px-3 py-2 hover:bg-blue-700 disabled:opacity-50"
-          >
-            {submitting ? "Verifying..." : "Verify & continue"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setStep("phone")}
-            className="w-full text-sm text-gray-500 hover:underline"
-          >
-            Use a different number
-          </button>
-        </form>
-      )}
+
+          {step === "otp" && (
+            <form onSubmit={handleVerify} className="space-y-4">
+              {devNote && <HelpText>Dev mode: {devNote}. Check the backend server logs for the 6-digit code.</HelpText>}
+              <div>
+                <Label htmlFor="code">Enter OTP</Label>
+                <input
+                  id="code"
+                  type="text"
+                  required
+                  maxLength={6}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  className={`${inputClass} text-center text-lg tracking-[0.5em] font-medium`}
+                  placeholder="------"
+                />
+              </div>
+              {error && <ErrorText>{error}</ErrorText>}
+              <Button type="submit" loading={submitting} fullWidth>
+                {submitting ? "Verifying..." : "Verify & continue"}
+              </Button>
+              <button
+                type="button"
+                onClick={() => setStep("phone")}
+                className="w-full text-sm text-slate-500 hover:text-slate-700 transition-colors"
+              >
+                Use a different number
+              </button>
+            </form>
+          )}
+        </Card>
+      </div>
     </div>
   );
 }
