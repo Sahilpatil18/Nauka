@@ -8,12 +8,15 @@ import { Card } from "@/components/ui/Card";
 import { Label, inputClass, ErrorText, HelpText } from "@/components/ui/Field";
 import Button from "@/components/ui/Button";
 
+// "admin" is deliberately not offered here — it wasn't one of the 4 roles in
+// the Phase 1 doc, and self-service admin signup is a real access-control gap
+// (see project notes). The /admin/* pages and API still work if an admin
+// account is created directly through the API for internal/dev use.
 const ROLES: { value: UserRole; label: string; description: string }[] = [
   { value: "fisherman", label: "Fisherman / Boat Owner", description: "Log catches, view PFZ & prices" },
   { value: "vendor", label: "Equipment & Gear Vendor", description: "List and sell marine equipment" },
   { value: "buyer", label: "Exporter / B2B Buyer", description: "Source from vendors, request quotes" },
   { value: "cooperative", label: "Fisheries Cooperative Society", description: "Register your society" },
-  { value: "admin", label: "Admin / Field Agent", description: "Enter harbour price data" },
 ];
 
 const ROLE_HOME: Record<string, string> = {
