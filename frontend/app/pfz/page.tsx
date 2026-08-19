@@ -7,6 +7,10 @@ import { ErrorText, HelpText } from "@/components/ui/Field";
 import { EmptyState, LoadingRows } from "@/components/ui/EmptyState";
 import Badge from "@/components/ui/Badge";
 
+function formatValidityDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+
 function dataQualityBadge(a: PFZAdvisory) {
   const zoneIsReal = a.source.includes("real PFZ advisory");
   const tempIsReal = a.source.toLowerCase().includes("real erddap") || a.source.toLowerCase().includes("real temperature");
@@ -37,6 +41,16 @@ export default function PfzPage() {
           Maharashtra PFZ advisories — the same data INCOIS publishes, matched to our harbours.
         </p>
       </div>
+
+      {advisories.length > 0 && (
+        <div className="rounded-xl border-2 border-amber-300 bg-amber-50 px-6 py-4 text-center">
+          <p className="text-sm font-bold uppercase tracking-wide text-slate-800">Maharashtra</p>
+          <p className="text-sm font-bold uppercase tracking-wide text-slate-800 mt-1">
+            Forecast validity from {formatValidityDate(advisories[0].valid_from)} to{" "}
+            {formatValidityDate(advisories[0].valid_to)}
+          </p>
+        </div>
+      )}
 
       <HelpText>
         Zone position/bearing/distance is pulled live from INCOIS&apos;s public advisory page where

@@ -192,7 +192,35 @@ def _decimal_to_dms(value: float, positive_hemisphere: str, negative_hemisphere:
     return f"{degrees} {minutes} {seconds} {hemisphere}"
 
 
-def _fetch_incois_pfz_rows(sector_id: str = _MAHARASHTRA_SECTOR_ID) -> list[dict]:
+_MONTH_ABBREVIATIONS = {
+    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
+    "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
+}
+
+
+def _parse_till_date(html: str) -> datetime | None:
+    """
+    INCOIS states the advisory's own validity right on the page — e.g.
+    'SATELLITE DATA SHOWS LIKELY AVAILABILITY OF FISH STOCK TILL  19 AUG
+    2026'. Real text, not baked into an image, so it's worth trusting over
+    guessing our own expiry window. Returns None if the page doesn't have it
+    (format changed, or this ever runs against a sector without the banner).
+    """
+    match = re.search(r"TILL\s+(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})", html, re.IGNORECASE)
+    if not match:
+        return None
+    day, month_abbr, year = match.groups()
+    month = _MONTH_ABBREVIATIONS.get(month_abbr.lower())
+    if month is None:
+        return None
+    try:
+        # Advisory is valid through the end of the stated day, not the start.
+        return datetime(int(year), month, int(day), 23, 59, 59)
+    except ValueError:
+        return None
+
+
+def _fetch_incois_pfz_rows(sector_id: str = _MAHARASHTRA_SECTOR_ID) -> tuple[list[dict], datetime | None]:
     """
     Scrapes INCOIS's public Marine Fisheries text-data page. Session-based
     (visit the home page first to get a session cookie, then select the
@@ -206,6 +234,8 @@ def _fetch_incois_pfz_rows(sector_id: str = _MAHARASHTRA_SECTOR_ID) -> list[dict
         resp = client.get(f"{_INCOIS_BASE}/MarineFisheries/TextData?secid={sector_id}")
         resp.raise_for_status()
         html = resp.text
+
+    valid_to = _parse_till_date(html)
 
     cells = re.findall(r'<td align="center">([^<]*)</td>', html)
     rows = []
@@ -228,7 +258,7 @@ def _fetch_incois_pfz_rows(sector_id: str = _MAHARASHTRA_SECTOR_ID) -> list[dict
                 "longitude_dms": lon_dms.strip(),
             }
         )
-    return rows
+    return rows, valid_to
 
 
 def _fetch_real_pfz_advisories() -> list[dict] | None:
@@ -239,12 +269,15 @@ def _fetch_real_pfz_advisories() -> list[dict] | None:
     Both cases fall back to the same place in get_pfz_advisories().
     """
     try:
-        rows = _fetch_incois_pfz_rows()
+        rows, parsed_valid_to = _fetch_incois_pfz_rows()
     except Exception:
         logger.warning("INCOIS PFZ text-data scrape failed", exc_info=True)
         return None
 
     now = datetime.utcnow()
+    # Trust INCOIS's own stated validity when we found it; otherwise fall
+    # back to the 1-day assumption rather than leaving it unset.
+    valid_to = parsed_valid_to if parsed_valid_to and parsed_valid_to > now else now + timedelta(days=1)
     advisories = []
     for row in rows:
         normalized = re.sub(r"[^a-z]", "", row["name"].lower())
@@ -277,7 +310,7 @@ def _fetch_real_pfz_advisories() -> list[dict] | None:
                 "sea_surface_temp_c": sea_surface_temp_c,
                 "chlorophyll_mg_m3": round(random.uniform(0.3, 2.5), 2),  # always mock — see module docstring
                 "valid_from": now,
-                "valid_to": now + timedelta(days=1),  # this source updates daily
+                "valid_to": valid_to,
                 "source": f"INCOIS real PFZ advisory (Maharashtra), {temp_note}, mock chlorophyll",
             }
         )

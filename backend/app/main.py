@@ -1,16 +1,21 @@
+import asyncio
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.database import SessionLocal
 from app.api import auth, onboarding, catalog, pfz, harbour, catchlog, verification
+from app.services.pfz_cache import refresh_pfz_cache_if_stale
 
 # Without this, app-level loggers (e.g. app.services.otp_service) sit at the
 # default WARNING level and their .info() calls — including the dev-stub OTP
 # code — never print anywhere, even though nothing errors. Uvicorn configures
 # its own loggers but not arbitrary ones like "nauka.otp".
 logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
+logger = logging.getLogger("nauka.pfz_refresh")
 
 # Schema is owned by Alembic now (migrations/), not by the app on boot — run
 # `alembic upgrade head` before starting the server. The app used to call
@@ -18,7 +23,33 @@ logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
 # silently does nothing for column changes on an existing table — that's
 # exactly the gap that kept forcing a full dev-db wipe on every schema change.
 
-app = FastAPI(title=settings.app_name)
+_PFZ_REFRESH_CHECK_INTERVAL_SECONDS = 1800  # 30 min — this data is safety/livelihood-relevant,
+# so freshness shouldn't depend on someone happening to visit right after INCOIS
+# updates. The check is cheap (a DB query) when the cache is still fresh; the
+# real scrape only runs when it's actually expired.
+
+
+async def _pfz_refresh_loop() -> None:
+    while True:
+        try:
+            db = SessionLocal()
+            try:
+                await asyncio.to_thread(refresh_pfz_cache_if_stale, db)
+            finally:
+                db.close()
+        except Exception:
+            logger.warning("Background PFZ refresh check failed", exc_info=True)
+        await asyncio.sleep(_PFZ_REFRESH_CHECK_INTERVAL_SECONDS)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    task = asyncio.create_task(_pfz_refresh_loop())
+    yield
+    task.cancel()
+
+
+app = FastAPI(title=settings.app_name, lifespan=lifespan)
 
 # Dev-only: wide open so the Next.js dev server (localhost:3000) can call this
 # freely. Tighten to specific origins before this is exposed beyond local dev.
