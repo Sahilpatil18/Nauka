@@ -53,7 +53,9 @@ export default function PfzPage() {
       <div>
         <h1 className="text-xl font-semibold text-slate-900">Potential Fishing Zones</h1>
         <p className="text-sm text-slate-500 mt-1">
-          Maharashtra PFZ advisories — the same data INCOIS publishes, matched to our harbours.
+          Every zone INCOIS currently publishes for Maharashtra
+          {advisories.length > 0 && ` — ${advisories.length} zones`}. Rows near one of our 8
+          harbours are labeled; the rest are shown as-is.
         </p>
       </div>
 
@@ -90,9 +92,9 @@ export default function PfzPage() {
         </Card>
       ) : (
         <Card padded={false} className="overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="overflow-auto max-h-[70vh]">
             <table className="w-full text-sm min-w-[920px]">
-              <thead className="bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">
+              <thead className="sticky top-0 z-10 bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">
                 <tr>
                   <th className="px-4 sm:px-5 py-3">From the coast of</th>
                   <th className="px-4 sm:px-5 py-3">Direction</th>

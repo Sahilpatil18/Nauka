@@ -18,11 +18,15 @@ directly on 2026-08-19:
    is used here to attach a real temperature to each real zone from (1).
 
 So the honest picture:
-  - reference_point / latitude / longitude: REAL, for whichever of our 8
-    seeded harbours actually appear in INCOIS's Maharashtra table (as of
-    investigation: Satpati, Arnala, Sassoon Dock, Alibag, Ratnagiri,
-    Mirkarwada, and Malvan/Sindhudurg do; Karanja and Harnai don't appear in
-    this particular sector's table, so they still fall back to mock).
+  - reference_point / latitude / longitude: REAL, for every zone INCOIS's
+    Maharashtra table currently lists (~50, varies cycle to cycle — INCOIS
+    doesn't always publish the same set of landing centers; confirmed by
+    comparing fetches at different times the same day). Not filtered down
+    to our 8 seeded harbours anymore — that discarded ~90% of real zones for
+    no good reason. A harbour label is attached as extra context wherever
+    one of our 8 genuinely matches by name (whole-word match, not
+    substring — see _match_harbour_by_name for the false-positive that
+    caught), but every real row is kept either way.
   - sea_surface_temp_c: REAL where the ERDDAP grid has nearby coverage
     (frequently missing right at the coast — ARGO floats operate in open
     water), mock otherwise.
@@ -318,8 +322,15 @@ def _fetch_real_pfz_advisories() -> list[dict] | None:
     """
     Returns None if the scrape itself failed (network error, page changed
     shape entirely) so the caller can log that distinctly from "scrape
-    worked but matched none of our known harbours" (which returns []).
-    Both cases fall back to the same place in get_pfz_advisories().
+    returned nothing usable" (which returns []). Both cases fall back to the
+    same place in get_pfz_advisories().
+
+    Returns every real zone INCOIS publishes for Maharashtra (~50, matching
+    what a person sees on their page directly) — earlier this filtered down
+    to only the ~4-8 rows matching one of our 8 seeded harbours by name,
+    which silently discarded the other 40+ real zones. A harbour label is
+    still attached where one of our 8 harbours genuinely matches, as extra
+    context, but it no longer gates whether a row is included at all.
     """
     try:
         rows, parsed_valid_to, source_updated_at = _fetch_incois_pfz_rows()
@@ -334,8 +345,6 @@ def _fetch_real_pfz_advisories() -> list[dict] | None:
     advisories = []
     for row in rows:
         matched_harbour = _match_harbour_by_name(row["name"])
-        if matched_harbour is None:
-            continue
 
         real_temp = _fetch_erddap_temperature(row["latitude"], row["longitude"])
         if real_temp is not None:
@@ -345,9 +354,10 @@ def _fetch_real_pfz_advisories() -> list[dict] | None:
             sea_surface_temp_c = round(random.uniform(26.0, 29.5), 1)
             temp_note = "mock temperature (no ERDDAP coverage here)"
 
+        harbour_suffix = f" (near {matched_harbour})" if matched_harbour else ""
         advisories.append(
             {
-                "reference_point": f"{row['distance_km']} km {row['direction']} of {row['name']} (near {matched_harbour})",
+                "reference_point": f"{row['distance_km']} km {row['direction']} of {row['name']}{harbour_suffix}",
                 "landing_center": row["name"],
                 "direction": row["direction"],
                 "bearing_deg": float(row["bearing_deg"]) if row["bearing_deg"] else None,
