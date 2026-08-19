@@ -1,11 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { getPfz, PFZAdvisory, ApiError } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { ErrorText, HelpText, inputClass } from "@/components/ui/Field";
 import { EmptyState, LoadingRows } from "@/components/ui/EmptyState";
 import Badge from "@/components/ui/Badge";
+import Button from "@/components/ui/Button";
+
+// MapLibre needs the DOM/WebGL — never render it during SSR.
+const PfzMap = dynamic(() => import("@/components/PfzMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[500px] w-full rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center text-sm text-slate-400">
+      Loading map…
+    </div>
+  ),
+});
 
 function formatValidityDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
@@ -36,6 +48,7 @@ export default function PfzPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [view, setView] = useState<"table" | "map">("table");
 
   useEffect(() => {
     getPfz()
@@ -84,14 +97,29 @@ export default function PfzPage() {
       {error && <ErrorText>{error}</ErrorText>}
 
       {!loading && advisories.length > 0 && (
-        <div className="max-w-sm">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by coast name (e.g. Satpati, Arnala)"
-            className={inputClass}
-          />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="max-w-sm w-full">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by coast name (e.g. Satpati, Arnala)"
+              className={inputClass}
+            />
+          </div>
+          <div className="inline-flex rounded-lg border border-slate-300 p-0.5 bg-white">
+            <Button
+              type="button"
+              size="sm"
+              variant={view === "table" ? "primary" : "ghost"}
+              onClick={() => setView("table")}
+            >
+              Table
+            </Button>
+            <Button type="button" size="sm" variant={view === "map" ? "primary" : "ghost"} onClick={() => setView("map")}>
+              Map
+            </Button>
+          </div>
         </div>
       )}
 
@@ -105,6 +133,8 @@ export default function PfzPage() {
         <Card>
           <EmptyState title="No matching coast" description={`Nothing matches "${search}" — try a different name.`} />
         </Card>
+      ) : view === "map" ? (
+        <PfzMap advisories={filteredAdvisories} />
       ) : (
         <Card padded={false} className="overflow-hidden">
           <div className="overflow-auto max-h-[70vh]">
