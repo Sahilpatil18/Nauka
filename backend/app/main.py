@@ -4,7 +4,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.database import Base, engine
 from app.api import auth, onboarding, catalog, pfz, harbour, catchlog, verification
 
 # Without this, app-level loggers (e.g. app.services.otp_service) sit at the
@@ -13,7 +12,11 @@ from app.api import auth, onboarding, catalog, pfz, harbour, catchlog, verificat
 # its own loggers but not arbitrary ones like "nauka.otp".
 logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
 
-Base.metadata.create_all(bind=engine)
+# Schema is owned by Alembic now (migrations/), not by the app on boot — run
+# `alembic upgrade head` before starting the server. The app used to call
+# Base.metadata.create_all() here, which only ever adds missing tables and
+# silently does nothing for column changes on an existing table — that's
+# exactly the gap that kept forcing a full dev-db wipe on every schema change.
 
 app = FastAPI(title=settings.app_name)
 

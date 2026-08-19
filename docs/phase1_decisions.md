@@ -20,9 +20,10 @@ Kept here as a record of *why*, not as open questions anymore.
   Fishgram/Captainfresh at all — unresolved since the project started.
 - **Database**: running on SQLite for local dev (zero setup). Blueprint calls for PostgreSQL + PostGIS
   at scale — models use plain lat/lng floats for now so this is a straightforward swap, not a rewrite.
-  No migration tooling (Alembic) is set up yet — schema changes during Phase 1 have required
-  rebuilding the dev database from scratch, which is fine for throwaway dev data but won't be
-  once real users exist.
+  **Resolved 2026-08-19**: Alembic migrations are now set up (`backend/migrations/`) — schema
+  changes apply as incremental `ALTER TABLE`s that preserve existing data, instead of the
+  wipe-and-recreate that was happening before. See the "Database migrations" section in the
+  root README for the workflow.
 - **OTP/SMS**: stubbed — codes are logged to the backend console instead of sent, since no SMS
   gateway is configured. Needs a real provider (MSG91, Twilio, etc.) before this leaves local dev.
 - **Mobile app**: on hold as of 2026-08-19 — fishermen use the web portal like every other role.

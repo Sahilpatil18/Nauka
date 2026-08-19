@@ -1,5 +1,8 @@
-"""Seed the 8 Maharashtra harbours and equipment categories named in the Phase 1 doc."""
-from app.database import SessionLocal, engine, Base
+"""
+Seed the 8 Maharashtra harbours and equipment categories named in the Phase 1 doc.
+Assumes the schema already exists — run `alembic upgrade head` first.
+"""
+from app.database import SessionLocal
 from app.models.harbour import Harbour
 from app.models.catalog import ProductCategory
 
@@ -23,7 +26,6 @@ CATEGORIES = [
 
 
 def seed():
-    Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
         if db.query(Harbour).count() == 0:

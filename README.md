@@ -11,6 +11,7 @@ still needs your sign-off.
 
 ```
 backend/    FastAPI service — the whole Phase 1 API surface, tested and working
+            (backend/migrations/ — Alembic schema migrations, see below)
 frontend/   Next.js web portal — all 5 roles including fishermen, plus public PFZ & price pages
 mobile/     Flutter app plan — on hold as of 2026-08-19, fishermen use the web portal instead
 docs/       Decisions log
@@ -23,11 +24,35 @@ cd backend
 python -m venv .venv
 .venv/Scripts/activate        # .venv\Scripts\activate.bat on cmd
 pip install -r requirements.txt
+alembic upgrade head          # creates/updates the schema — see "Database migrations" below
 python -m app.seed            # loads the 8 Maharashtra harbours + equipment categories
 uvicorn app.main:app --reload
 ```
 
 Then open http://127.0.0.1:8000/docs for the interactive API (Swagger UI).
+
+### Database migrations
+
+Schema changes go through Alembic (`backend/migrations/`), not app-boot `create_all()` —
+that's what used to force a full dev-database wipe every time a model changed, which
+doesn't scale to real client data. Workflow for any model change:
+
+```bash
+# after editing a model in app/models/
+alembic revision --autogenerate -m "add whatever_field to whatever_table"
+# open the generated file in migrations/versions/ and actually read it —
+# autogenerate misses some things (renames look like drop+add, for example)
+alembic upgrade head
+```
+
+This applies incremental `ALTER TABLE`s and preserves existing rows — SQLite can't do most
+`ALTER TABLE` operations natively, so `migrations/env.py` runs Alembic in "batch mode,"
+which does the create-new-table/copy-data/swap dance safely under one migration instead.
+The same migration files carry over unchanged when this moves to PostgreSQL.
+
+Tests don't use this — `tests/test_health.py` builds its own isolated in-memory SQLite
+schema directly via `create_all()`, which is the right call for fast, disposable test runs.
+Migrations are for environments where the data needs to survive, tests aren't one of those.
 
 Run the tests:
 
@@ -82,7 +107,10 @@ clean (TypeScript + ESLint, zero errors).
   SMS provider before this leaves local dev.
 - **SQLite, not PostgreSQL + PostGIS.** Models use plain lat/lng floats, so
   the swap to Postgres/PostGIS at scale is additive, not a rewrite — but it
-  hasn't been done yet.
+  hasn't been done yet. Now that schema changes go through Alembic (see
+  "Database migrations" above), the same migration history applies to
+  Postgres unchanged — just point `DATABASE_URL` at it and run `alembic
+  upgrade head`.
 - **No native mobile app — decided, not just deferred (2026-08-19).** Fishermen
   use the web portal like every other role now. This means no reliable offline
   cache while at sea (a browser tab isn't a native app's local storage) — a
