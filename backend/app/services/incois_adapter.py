@@ -60,17 +60,26 @@ _ERDDAP_TEMP_DATASET = "incois_argo_10day_McCreary"  # confirmed current as of 2
 _INCOIS_BASE = "https://incois.gov.in"
 _MAHARASHTRA_SECTOR_ID = "SEC002"  # confirmed 2026-08-19 by checking the page directly
 
-# Maps a normalized substring found in INCOIS's "From the coast of" column to
-# the matching harbour name already seeded in our own database (harbours.py).
-# Only rows matching one of these are kept — INCOIS's table has ~70 landing
-# centers for Maharashtra, far more granular than our 8 seeded harbours, and
-# querying real-time temperature for every single one isn't worth the cost.
+# Matched against INCOIS's own "From the coast of" name — that's the
+# authoritative signal (INCOIS itself is telling us which coastal point this
+# zone is offshore from), NOT the zone's own coordinates. Distance-matching
+# was tried and is fundamentally wrong here: PFZ points are deliberately far
+# offshore (Satpati's own zone is ~77km from Satpati's coastal coordinate —
+# confirmed directly), so comparing a zone's lat/long to a harbour's lat/long
+# rejects even the objectively correct pairing.
+#
+# The real bug was substring matching, not the name-based approach itself:
+# "Marve/Malvani" (a Mumbai suburb) got wrongly matched to our Malvan harbour
+# because "malvan" is a substring of "malvani". Fixed by matching whole
+# tokens (split on non-letters) instead of raw substrings — "malvani" now
+# correctly fails to equal "malvan".
 _KNOWN_HARBOUR_KEYWORDS = {
     "karanja": "Karanja",
     "alibag": "Alibag",
     "sasoondock": "Sassoon Dock",
     "sassoon": "Sassoon Dock",
     "arnala": "Arnala",
+    "arnalapada": "Arnala",  # a genuine compound of the name (Marathi "-pada" = hamlet-of), not a coincidence
     "ratnagiri": "Ratnagiri / Mirkarwada",
     "mirkarwada": "Ratnagiri / Mirkarwada",
     "malvan": "Malvan",
@@ -78,6 +87,15 @@ _KNOWN_HARBOUR_KEYWORDS = {
     "harnai": "Harnai",
     "satpati": "Satpati",
 }
+
+
+def _match_harbour_by_name(name: str) -> str | None:
+    """Whole-word match only — see the false-positive this replaced, above."""
+    for token in re.findall(r"[a-z]+", name.lower()):
+        if token in _KNOWN_HARBOUR_KEYWORDS:
+            return _KNOWN_HARBOUR_KEYWORDS[token]
+    return None
+
 
 _MOCK_ZONES = [
     {
@@ -315,10 +333,7 @@ def _fetch_real_pfz_advisories() -> list[dict] | None:
     valid_to = parsed_valid_to if parsed_valid_to and parsed_valid_to > now else now + timedelta(days=1)
     advisories = []
     for row in rows:
-        normalized = re.sub(r"[^a-z]", "", row["name"].lower())
-        matched_harbour = next(
-            (label for keyword, label in _KNOWN_HARBOUR_KEYWORDS.items() if keyword in normalized), None
-        )
+        matched_harbour = _match_harbour_by_name(row["name"])
         if matched_harbour is None:
             continue
 
