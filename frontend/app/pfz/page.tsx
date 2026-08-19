@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { getPfz, PFZAdvisory, ApiError } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
-import { ErrorText, HelpText } from "@/components/ui/Field";
+import { ErrorText, HelpText, inputClass } from "@/components/ui/Field";
 import { EmptyState, LoadingRows } from "@/components/ui/EmptyState";
 import Badge from "@/components/ui/Badge";
 
@@ -35,6 +35,7 @@ export default function PfzPage() {
   const [advisories, setAdvisories] = useState<PFZAdvisory[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     getPfz()
@@ -42,6 +43,11 @@ export default function PfzPage() {
       .catch((err) => setError(err instanceof ApiError ? err.message : "Could not reach the API"))
       .finally(() => setLoading(false));
   }, []);
+
+  const query = search.trim().toLowerCase();
+  const filteredAdvisories = query
+    ? advisories.filter((a) => (a.landing_center || a.reference_point || "").toLowerCase().includes(query))
+    : advisories;
 
   return (
     <div className="space-y-6">
@@ -77,11 +83,27 @@ export default function PfzPage() {
 
       {error && <ErrorText>{error}</ErrorText>}
 
+      {!loading && advisories.length > 0 && (
+        <div className="max-w-sm">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by coast name (e.g. Satpati, Arnala)"
+            className={inputClass}
+          />
+        </div>
+      )}
+
       {loading ? (
         <LoadingRows count={4} />
       ) : advisories.length === 0 ? (
         <Card>
           <EmptyState title="No advisories available" />
+        </Card>
+      ) : filteredAdvisories.length === 0 ? (
+        <Card>
+          <EmptyState title="No matching coast" description={`Nothing matches "${search}" — try a different name.`} />
         </Card>
       ) : (
         <Card padded={false} className="overflow-hidden">
@@ -100,7 +122,7 @@ export default function PfzPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {advisories.map((a) => (
+                {filteredAdvisories.map((a) => (
                   <tr key={a.id} className="hover:bg-slate-50/60">
                     <td className="px-4 sm:px-5 py-3 font-medium text-slate-900">
                       {a.landing_center || a.reference_point || "—"}
