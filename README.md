@@ -89,17 +89,28 @@ clean (TypeScript + ESLint, zero errors).
 | Role 3 — Equipment & Gear Vendors | Done — profile + catalog + RFQ inbox |
 | Role 4 — Exporters & B2B Buyers | Done — profile + RFQ requests; "direct interest pinging to societies" not built yet |
 | Marine Equipment Catalog (B2B Marketplace) | Done — categories, products, port-location filter, RFQ |
-| PFZ & Ocean Data | Done as passthrough (INCOIS adapter, currently mocked — see below) |
+| PFZ & Ocean Data | Partial real data as of 2026-08-19 — see below |
 | Harbour Landings & Daily Price Index | Done — manual entry + computed 7-day trend |
 | Catch logging | Added beyond the doc (decision #1) — see `docs/phase1_decisions.md` |
 | Safety/weather gate | Not built — data model has room for it, no logic yet |
 
 ## Known gaps — real, not hidden
 
-- **INCOIS API access is not confirmed.** `app/services/incois_adapter.py` returns
-  mock PFZ data near real Maharashtra harbours so everything downstream works
-  today. Swap in real credentials via `.env` (`INCOIS_API_BASE_URL`,
-  `INCOIS_API_KEY`) once access is confirmed — no other code changes needed.
+- **No formal INCOIS API/partnership exists — but real data is flowing for one
+  parameter as of 2026-08-19.** INCOIS runs a public, unauthenticated ERDDAP
+  server (`erddap.incois.gov.in`) with real satellite/ARGO-float ocean data.
+  Investigated directly: most of its datasets are stale (its SST dataset stops
+  in 2010, chlorophyll in 2006), but one ARGO objective-analysis dataset is
+  genuinely current (~3-week lag). `app/services/incois_adapter.py` now pulls
+  **real temperature** from it per zone, falling back to mock only where that
+  grid has no nearby data (common right at the coast — ARGO floats operate in
+  open water). **Chlorophyll and the actual PFZ zone boundaries/lines are
+  still fully mock** — no live public source was found for either; the real
+  "PFZ advisory" product (the demarcated zones INCOIS actually publishes) is
+  only available as web maps and image/text bulletins, not an open API. Every
+  advisory's `source` field states plainly which parts are real vs mock —
+  check it rather than assuming. A formal `INCOIS_API_BASE_URL`/`INCOIS_API_KEY`
+  partnership would still be the way to get the real zone-boundary product.
 - **No session/token auth.** Endpoints take a `user_id` directly rather than a
   bearer token. Fine for building against locally; needs a real auth layer
   (JWT or similar) before this is exposed to real users.

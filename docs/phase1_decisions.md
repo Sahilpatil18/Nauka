@@ -13,11 +13,19 @@ Kept here as a record of *why*, not as open questions anymore.
 
 ## Still open — not covered by the above
 
-- **INCOIS API access**: still not confirmed to exist. `services/incois_adapter.py` returns
-  realistic mock data so the rest of the app works today — swap in the real client once
-  credentials/terms are confirmed. If Nauka is reusing Fishgram's existing INCOIS integration,
-  that adapter can likely be replaced quickly. See also: whether Nauka has any relationship to
-  Fishgram/Captainfresh at all — unresolved since the project started.
+- **INCOIS API access**: a *formal* partnership/credentialed API still doesn't exist and isn't
+  something that can be obtained from this side — that requires an actual relationship with
+  INCOIS. **Partially resolved 2026-08-19**: investigated INCOIS's public ERDDAP server
+  (`erddap.incois.gov.in`) directly — it's real, open, unauthenticated, and one of its datasets
+  (ARGO 10-day objective analysis) is genuinely current. `services/incois_adapter.py` now pulls
+  **real sea surface temperature** from it, with an honest per-zone fallback to mock where that
+  dataset has no nearby coverage (frequent right at the coast). Chlorophyll and the actual PFZ
+  zone boundaries are still fully mock — no live public source exists for either; INCOIS's real
+  "PFZ advisory" (the demarcated zones themselves) is only published as web maps/bulletins, not
+  an open API. A formal `INCOIS_API_BASE_URL`/`INCOIS_API_KEY` partnership is still the only path
+  to that. See also: whether Nauka has any relationship to Fishgram/Captainfresh at all —
+  unresolved since the project started, and would still be the fastest path to the real thing if
+  it exists.
 - **Database**: running on SQLite for local dev (zero setup). Blueprint calls for PostgreSQL + PostGIS
   at scale — models use plain lat/lng floats for now so this is a straightforward swap, not a rewrite.
   **Resolved 2026-08-19**: Alembic migrations are now set up (`backend/migrations/`) — schema
