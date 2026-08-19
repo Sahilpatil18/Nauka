@@ -42,6 +42,7 @@ class PFZAdvisory(Base):
     chlorophyll_mg_m3 = Column(Float, nullable=True)
 
     valid_from = Column(DateTime, nullable=False)
-    valid_to = Column(DateTime, nullable=False)
+    valid_to = Column(DateTime, nullable=False)  # INCOIS's stated "TILL" date — display only, not a cache-freshness signal
+    source_updated_at = Column(DateTime, nullable=True)  # INCOIS's own "Data updated on" timestamp, in UTC
     source = Column(String, default="INCOIS")
-    fetched_at = Column(DateTime, default=datetime.utcnow)
+    fetched_at = Column(DateTime, default=datetime.utcnow)  # when *we* last fetched — this is what drives cache freshness

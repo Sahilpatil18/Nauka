@@ -20,6 +20,7 @@ class PFZAdvisoryOut(BaseModel):
     chlorophyll_mg_m3: Optional[float] = None
     valid_from: datetime
     valid_to: datetime
+    source_updated_at: Optional[datetime] = None
     source: str
 
     class Config:

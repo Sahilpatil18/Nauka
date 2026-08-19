@@ -93,6 +93,7 @@ export interface PFZAdvisory {
   chlorophyll_mg_m3: number | null;
   valid_from: string;
   valid_to: string;
+  source_updated_at: string | null;
   source: string;
 }
 

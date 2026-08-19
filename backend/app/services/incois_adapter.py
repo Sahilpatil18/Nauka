@@ -220,7 +220,40 @@ def _parse_till_date(html: str) -> datetime | None:
         return None
 
 
-def _fetch_incois_pfz_rows(sector_id: str = _MAHARASHTRA_SECTOR_ID) -> tuple[list[dict], datetime | None]:
+_SOURCE_UPDATED_PATTERN = re.compile(
+    r'id="updatedDate"[^>]*>\s*[A-Za-z]{3}\s+([A-Za-z]{3})\s+(\d{1,2})\s+(\d{2}):(\d{2}):(\d{2})\s+IST\s+(\d{4})'
+)
+
+
+def _parse_source_updated_at(html: str) -> datetime | None:
+    """
+    INCOIS's page carries a hidden but real timestamp — <p id="updatedDate"
+    style='display:none;'> Wed Aug 19 15:38:48 IST 2026</p> — showing exactly
+    when their backend last regenerated this data. Confirmed by direct
+    comparison: this is the actual source-of-truth for freshness, updating
+    more often than the day-level "TILL" date implies — the underlying
+    bearing/distance/depth numbers for the same landing center genuinely
+    change within the same "TILL" window, more than once a day. Returns UTC
+    (the site always reports IST — confirmed, not assumed, since it's an
+    Indian government site — so this converts by a fixed -5:30 offset).
+    """
+    match = _SOURCE_UPDATED_PATTERN.search(html)
+    if not match:
+        return None
+    month_abbr, day, hour, minute, second, year = match.groups()
+    month = _MONTH_ABBREVIATIONS.get(month_abbr.lower())
+    if month is None:
+        return None
+    try:
+        ist = datetime(int(year), month, int(day), int(hour), int(minute), int(second))
+        return ist - timedelta(hours=5, minutes=30)
+    except ValueError:
+        return None
+
+
+def _fetch_incois_pfz_rows(
+    sector_id: str = _MAHARASHTRA_SECTOR_ID,
+) -> tuple[list[dict], datetime | None, datetime | None]:
     """
     Scrapes INCOIS's public Marine Fisheries text-data page. Session-based
     (visit the home page first to get a session cookie, then select the
@@ -228,6 +261,7 @@ def _fetch_incois_pfz_rows(sector_id: str = _MAHARASHTRA_SECTOR_ID) -> tuple[lis
     <table><tr><td align="center">...</td></tr></table>, parsed here by
     regex since the structure is simple and consistent; if INCOIS changes
     it, this returns [] (via the cell-count check) rather than garbage.
+    Returns (rows, till_date, source_updated_at).
     """
     with httpx.Client(timeout=15.0, follow_redirects=True) as client:
         client.get(f"{_INCOIS_BASE}/MarineFisheries/TextDataHome?mfid=1&request_locale=en")
@@ -236,6 +270,7 @@ def _fetch_incois_pfz_rows(sector_id: str = _MAHARASHTRA_SECTOR_ID) -> tuple[lis
         html = resp.text
 
     valid_to = _parse_till_date(html)
+    source_updated_at = _parse_source_updated_at(html)
 
     cells = re.findall(r'<td align="center">([^<]*)</td>', html)
     rows = []
@@ -258,7 +293,7 @@ def _fetch_incois_pfz_rows(sector_id: str = _MAHARASHTRA_SECTOR_ID) -> tuple[lis
                 "longitude_dms": lon_dms.strip(),
             }
         )
-    return rows, valid_to
+    return rows, valid_to, source_updated_at
 
 
 def _fetch_real_pfz_advisories() -> list[dict] | None:
@@ -269,7 +304,7 @@ def _fetch_real_pfz_advisories() -> list[dict] | None:
     Both cases fall back to the same place in get_pfz_advisories().
     """
     try:
-        rows, parsed_valid_to = _fetch_incois_pfz_rows()
+        rows, parsed_valid_to, source_updated_at = _fetch_incois_pfz_rows()
     except Exception:
         logger.warning("INCOIS PFZ text-data scrape failed", exc_info=True)
         return None
@@ -311,6 +346,7 @@ def _fetch_real_pfz_advisories() -> list[dict] | None:
                 "chlorophyll_mg_m3": round(random.uniform(0.3, 2.5), 2),  # always mock — see module docstring
                 "valid_from": now,
                 "valid_to": valid_to,
+                "source_updated_at": source_updated_at,
                 "source": f"INCOIS real PFZ advisory (Maharashtra), {temp_note}, mock chlorophyll",
             }
         )
@@ -339,6 +375,7 @@ def _build_mock_advisories() -> list[dict]:
                 "chlorophyll_mg_m3": round(random.uniform(0.3, 2.5), 2),
                 "valid_from": now,
                 "valid_to": now + timedelta(days=2),
+                "source_updated_at": None,
                 "source": source,
             }
         )

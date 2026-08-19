@@ -11,6 +11,21 @@ function formatValidityDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+function formatSourceUpdatedAt(iso: string) {
+  return (
+    new Date(iso).toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    }) + " IST"
+  );
+}
+
 function dataQualityBadge(a: PFZAdvisory) {
   const zoneIsReal = a.source.includes("real PFZ advisory");
   const tempIsReal = a.source.toLowerCase().includes("real erddap") || a.source.toLowerCase().includes("real temperature");
@@ -49,6 +64,11 @@ export default function PfzPage() {
             Forecast validity from {formatValidityDate(advisories[0].valid_from)} to{" "}
             {formatValidityDate(advisories[0].valid_to)}
           </p>
+          {advisories[0].source_updated_at && (
+            <p className="text-xs font-medium text-amber-700 mt-2">
+              INCOIS data updated on: {formatSourceUpdatedAt(advisories[0].source_updated_at)}
+            </p>
+          )}
         </div>
       )}
 

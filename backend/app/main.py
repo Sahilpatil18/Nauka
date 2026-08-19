@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import SessionLocal
 from app.api import auth, onboarding, catalog, pfz, harbour, catchlog, verification
-from app.services.pfz_cache import refresh_pfz_cache_if_stale
+from app.services.pfz_cache import refresh_pfz_cache_if_stale, CACHE_MAX_AGE_MINUTES
 
 # Without this, app-level loggers (e.g. app.services.otp_service) sit at the
 # default WARNING level and their .info() calls — including the dev-stub OTP
@@ -23,10 +23,13 @@ logger = logging.getLogger("nauka.pfz_refresh")
 # silently does nothing for column changes on an existing table — that's
 # exactly the gap that kept forcing a full dev-db wipe on every schema change.
 
-_PFZ_REFRESH_CHECK_INTERVAL_SECONDS = 1800  # 30 min — this data is safety/livelihood-relevant,
-# so freshness shouldn't depend on someone happening to visit right after INCOIS
-# updates. The check is cheap (a DB query) when the cache is still fresh; the
-# real scrape only runs when it's actually expired.
+# Matches pfz_cache.CACHE_MAX_AGE_MINUTES so this loop actually catches each
+# expiry promptly instead of leaving a gap between the two. This data is
+# safety/livelihood-relevant, so freshness shouldn't depend on someone
+# happening to visit right after INCOIS updates. The check is cheap (a DB
+# query) when the cache is still fresh; the real scrape only runs when
+# it's actually expired.
+_PFZ_REFRESH_CHECK_INTERVAL_SECONDS = CACHE_MAX_AGE_MINUTES * 60
 
 
 async def _pfz_refresh_loop() -> None:
