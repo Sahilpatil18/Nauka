@@ -11,8 +11,8 @@ still needs your sign-off.
 
 ```
 backend/    FastAPI service — the whole Phase 1 API surface, tested and working
-frontend/   Next.js web portal — vendor/buyer/cooperative/admin, plus public PFZ & price pages
-mobile/     Flutter app plan (SDK not installed in this environment — see mobile/README.md)
+frontend/   Next.js web portal — all 5 roles including fishermen, plus public PFZ & price pages
+mobile/     Flutter app plan — on hold as of 2026-08-19, fishermen use the web portal instead
 docs/       Decisions log
 ```
 
@@ -51,17 +51,15 @@ npm run dev
 ```
 
 Open http://localhost:3000. Full page list and gaps are in `frontend/README.md`.
-This covers the vendor, buyer/exporter, cooperative, and admin/field-agent
-roles, plus public PFZ and price pages — **not** the fisherman experience,
-which is the mobile app. `npm run build` passes clean (TypeScript + ESLint,
-zero errors); backend + frontend were booted together and smoke-tested with
-CORS confirmed working.
+Covers all 5 Phase 1 roles — fisherman, vendor, buyer/exporter, cooperative, and
+admin/field-agent — plus public PFZ and price pages. `npm run build` passes
+clean (TypeScript + ESLint, zero errors).
 
 ## What's implemented (maps to the Phase 1 doc)
 
 | Phase 1 doc section | Status |
 |---|---|
-| Role 1 — Fishermen/Boat Owners onboarding | Done — OTP + profile + KYC gate |
+| Role 1 — Fishermen/Boat Owners onboarding | Done — OTP + profile + KYC gate, now with a web UI (no native mobile app; see decision below) |
 | Role 2 — Cooperative Societies onboarding | Done — profile only; bulk aggregation reporting not built yet |
 | Role 3 — Equipment & Gear Vendors | Done — profile + catalog + RFQ inbox |
 | Role 4 — Exporters & B2B Buyers | Done — profile + RFQ requests; "direct interest pinging to societies" not built yet |
@@ -85,9 +83,12 @@ CORS confirmed working.
 - **SQLite, not PostgreSQL + PostGIS.** Models use plain lat/lng floats, so
   the swap to Postgres/PostGIS at scale is additive, not a rewrite — but it
   hasn't been done yet.
-- **Mobile app isn't built.** Flutter SDK isn't installed in this environment.
-  `mobile/README.md` has the setup steps and the screen list mapped to this
-  API so a Flutter dev can pick it up directly.
+- **No native mobile app — decided, not just deferred (2026-08-19).** Fishermen
+  use the web portal like every other role now. This means no reliable offline
+  cache while at sea (a browser tab isn't a native app's local storage) — a
+  PWA/service-worker layer would be the way to claw some of that back if it
+  turns out to matter. `mobile/README.md` still has the original plan if this
+  gets revisited.
 
 ## Next, when you're back
 

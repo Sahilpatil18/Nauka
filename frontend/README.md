@@ -1,10 +1,14 @@
 # Nauka Frontend (Web)
 
-Next.js (App Router, TypeScript, Tailwind) web portal for **vendors, buyers/exporters,
-cooperative societies, and admin/field agents**, plus public PFZ and harbour price pages.
+Next.js (App Router, TypeScript, Tailwind) web portal for **all five Phase 1 roles** —
+fishermen, vendors, buyers/exporters, cooperative societies, and admin/field agents —
+plus public PFZ and harbour price pages.
 
-This is explicitly **not** the fisherman-facing experience — that's the mobile app
-(see `../mobile`). Fishermen are excluded from the login role picker on purpose.
+Decision (2026-08-19): the native mobile app (`../mobile`) is on hold — fishermen use
+this web portal too, same as every other role. That trades away true offline-at-sea
+capability for now (a browser tab isn't a reliable offline cache the way a native app
+with local storage is); worth revisiting with a PWA/service-worker layer if that
+matters for how fishermen actually use this in practice.
 
 ## Running it
 
@@ -26,6 +30,7 @@ Open http://localhost:3000. API base URL is set in `.env.local`
 |---|---|
 | `/` | Landing, role-aware links |
 | `/login` | Phone OTP login + role selection |
+| `/fisherman/onboarding`, `/fisherman/dashboard` | Fisherman profile/KYC, catch logging + history |
 | `/vendor/onboarding`, `/vendor/dashboard` | Vendor profile/KYC, product listing, RFQ inbox |
 | `/buyer/onboarding`, `/buyer/dashboard` | Buyer/exporter profile/KYC, browse catalog, request quotes |
 | `/cooperative/onboarding` | Cooperative profile setup (no dashboard yet — matches backend, which has no aggregation-reporting endpoints built) |

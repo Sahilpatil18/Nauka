@@ -9,6 +9,7 @@ import { Label, inputClass, ErrorText, HelpText } from "@/components/ui/Field";
 import Button from "@/components/ui/Button";
 
 const ROLES: { value: UserRole; label: string; description: string }[] = [
+  { value: "fisherman", label: "Fisherman / Boat Owner", description: "Log catches, view PFZ & prices" },
   { value: "vendor", label: "Equipment & Gear Vendor", description: "List and sell marine equipment" },
   { value: "buyer", label: "Exporter / B2B Buyer", description: "Source from vendors, request quotes" },
   { value: "cooperative", label: "Fisheries Cooperative Society", description: "Register your society" },
@@ -16,6 +17,7 @@ const ROLES: { value: UserRole; label: string; description: string }[] = [
 ];
 
 const ROLE_HOME: Record<string, string> = {
+  fisherman: "/fisherman/onboarding",
   vendor: "/vendor/onboarding",
   buyer: "/buyer/onboarding",
   cooperative: "/cooperative/onboarding",
@@ -109,9 +111,6 @@ export default function LoginPage() {
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-slate-400 mt-1.5">
-                  Fishermen use the mobile app, not this web portal.
-                </p>
               </div>
               {error && <ErrorText>{error}</ErrorText>}
               <Button type="submit" loading={submitting} fullWidth>

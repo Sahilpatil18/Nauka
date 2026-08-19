@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 
 const ROLE_LINKS: Record<string, { dashboard?: string; onboarding?: string; label: string }> = {
+  fisherman: { dashboard: "/fisherman/dashboard", onboarding: "/fisherman/onboarding", label: "Fisherman" },
   vendor: { dashboard: "/vendor/dashboard", onboarding: "/vendor/onboarding", label: "Vendor" },
   buyer: { dashboard: "/buyer/dashboard", onboarding: "/buyer/onboarding", label: "Buyer" },
   cooperative: { onboarding: "/cooperative/onboarding", label: "Cooperative" },
@@ -50,8 +51,7 @@ export default function Home() {
             real-time ocean intelligence — PFZ advisories and harbour landing prices in one place.
           </p>
           <p className="mt-2 text-sm text-teal-100/70">
-            This web portal serves vendors, buyers, and cooperatives. Fishermen use a separate
-            mobile app.
+            One web portal for fishermen, cooperative societies, equipment vendors, and buyers.
           </p>
 
           {!loading && (
@@ -112,8 +112,9 @@ export default function Home() {
         <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4">
           Built for the marine value chain
         </h2>
-        <div className="grid sm:grid-cols-3 gap-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
+            { role: "Fishermen", desc: "Log catches, track history, check PFZ and prices." },
             { role: "Vendors", desc: "List equipment, manage stock, respond to RFQs." },
             { role: "Buyers & exporters", desc: "Source from vendors, request quotes, track sourcing." },
             { role: "Cooperative societies", desc: "Register your society and harbour hub." },

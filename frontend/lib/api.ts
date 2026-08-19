@@ -90,6 +90,20 @@ export interface PFZAdvisory {
   source: string;
 }
 
+export type BoatType = "mechanized" | "motorized" | "traditional";
+
+export interface CatchLog {
+  id: string;
+  fisherman_id: string;
+  species: string;
+  quantity_kg: number;
+  catch_latitude: number | null;
+  catch_longitude: number | null;
+  harbour_id: string | null;
+  device_recorded_at: string;
+  synced_at: string;
+}
+
 export interface PriceIndexEntry {
   species: string;
   harbour_id: string;
@@ -116,6 +130,9 @@ export const verifyOtp = (phone_number: string, code: string, role: UserRole) =>
   });
 
 // ---- Onboarding ----
+
+export const upsertFishermanProfile = (userId: string, payload: Record<string, unknown>) =>
+  request(`/onboarding/${userId}/fisherman-profile`, { method: "PUT", body: JSON.stringify(payload) });
 
 export const upsertVendorProfile = (userId: string, payload: Record<string, unknown>) =>
   request(`/onboarding/${userId}/vendor-profile`, { method: "PUT", body: JSON.stringify(payload) });
@@ -174,3 +191,14 @@ export const createRfq = (requesterUserId: string, payload: Record<string, unkno
 
 export const listRfqsForVendor = (vendorUserId: string) =>
   request<RFQ[]>(`/catalog/rfqs/for-vendor/${vendorUserId}`);
+
+// ---- Catch log ----
+
+export const logCatch = (fishermanUserId: string, payload: Record<string, unknown>) =>
+  request<CatchLog>(`/catch-logs?fisherman_user_id=${fishermanUserId}`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+export const listCatchLogs = (fishermanUserId: string) =>
+  request<CatchLog[]>(`/catch-logs/for-fisherman/${fishermanUserId}`);
