@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import Base, engine
-from app.api import auth, onboarding, catalog, pfz, harbour, catchlog
+from app.api import auth, onboarding, catalog, pfz, harbour, catchlog, verification
 
 # Without this, app-level loggers (e.g. app.services.otp_service) sit at the
 # default WARNING level and their .info() calls — including the dev-stub OTP
@@ -32,6 +32,7 @@ app.include_router(catalog.router)
 app.include_router(pfz.router)
 app.include_router(harbour.router)
 app.include_router(catchlog.router)
+app.include_router(verification.router)
 
 
 @app.get("/health")

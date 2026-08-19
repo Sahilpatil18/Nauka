@@ -38,7 +38,12 @@ class User(Base):
     aadhaar_last4 = Column(String, nullable=True)  # store only last 4 digits, never full number
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    fisherman_profile = relationship("FishermanProfile", back_populates="user", uselist=False)
+    fisherman_profile = relationship(
+        "FishermanProfile",
+        back_populates="user",
+        uselist=False,
+        foreign_keys="FishermanProfile.user_id",
+    )
     cooperative_profile = relationship("CooperativeProfile", back_populates="user", uselist=False)
     vendor_profile = relationship("VendorProfile", back_populates="user", uselist=False)
     buyer_profile = relationship("BuyerProfile", back_populates="user", uselist=False)
@@ -51,6 +56,21 @@ class BoatType(str, enum.Enum):
     mechanized = "mechanized"
     motorized = "motorized"
     traditional = "traditional"
+
+
+class DocumentStatus(str, enum.Enum):
+    """
+    Human-in-the-loop review status for boat_registration_no / access_pass_no /
+    high_sea_pass_no. There is no ReALCraft or Port Authority API access, so
+    these numbers can never be machine-verified against the real registry —
+    this only records that a harbour agent/cooperative officer/admin looked at
+    them and made a judgment call. It is not equivalent to official verification.
+    """
+
+    unverified = "unverified"
+    pending_review = "pending_review"
+    verified = "verified"
+    rejected = "rejected"
 
 
 class FishermanProfile(Base):
@@ -68,9 +88,15 @@ class FishermanProfile(Base):
     access_pass_no = Column(String, nullable=True)
     high_sea_pass_no = Column(String, nullable=True)
 
+    # Human review of the above three fields — see DocumentStatus docstring.
+    document_status = Column(Enum(DocumentStatus), default=DocumentStatus.unverified, nullable=False)
+    document_review_notes = Column(String, nullable=True)
+    document_reviewed_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    document_reviewed_at = Column(DateTime, nullable=True)
+
     cooperative_id = Column(String, ForeignKey("cooperative_profiles.id"), nullable=True)
 
-    user = relationship("User", back_populates="fisherman_profile")
+    user = relationship("User", back_populates="fisherman_profile", foreign_keys=[user_id])
     home_harbour = relationship("Harbour")
 
 

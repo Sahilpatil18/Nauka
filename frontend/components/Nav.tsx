@@ -11,6 +11,13 @@ const PUBLIC_LINKS = [
   { href: "/prices", label: "Prices" },
 ];
 
+const ROLE_LINKS: Record<string, { href: string; label: string }[]> = {
+  admin: [
+    { href: "/admin/prices", label: "Price entry" },
+    { href: "/admin/verifications", label: "Verifications" },
+  ],
+};
+
 const KYC_TONE: Record<string, "slate" | "amber" | "green"> = {
   unverified: "slate",
   phone_verified: "amber",
@@ -43,6 +50,7 @@ export default function Nav() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
+  const roleLinks = user ? ROLE_LINKS[user.role] || [] : [];
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
@@ -51,7 +59,7 @@ export default function Nav() {
           <div className="flex items-center gap-8">
             <Logo />
             <nav className="hidden md:flex items-center gap-1">
-              {PUBLIC_LINKS.map((link) => (
+              {[...PUBLIC_LINKS, ...roleLinks].map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
@@ -115,7 +123,7 @@ export default function Nav() {
 
         {menuOpen && (
           <div className="md:hidden pb-4 space-y-1 border-t border-slate-100 pt-3">
-            {PUBLIC_LINKS.map((link) => (
+            {[...PUBLIC_LINKS, ...roleLinks].map((link) => (
               <Link
                 key={link.href}
                 href={link.href}

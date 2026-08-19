@@ -31,6 +31,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export type UserRole = "fisherman" | "cooperative" | "vendor" | "buyer" | "admin";
 export type KycStatus = "unverified" | "phone_verified" | "full_kyc";
+export type DocumentStatus = "unverified" | "pending_review" | "verified" | "rejected";
 
 export interface User {
   id: string;
@@ -92,6 +93,31 @@ export interface PFZAdvisory {
 
 export type BoatType = "mechanized" | "motorized" | "traditional";
 
+export interface FishermanProfile {
+  id: string;
+  user_id: string;
+  home_harbour_id: string | null;
+  boat_type: BoatType | null;
+  target_species: string | null;
+  boat_registration_no: string | null;
+  access_pass_no: string | null;
+  high_sea_pass_no: string | null;
+  document_status: DocumentStatus;
+  document_review_notes: string | null;
+  document_reviewed_by_user_id: string | null;
+  document_reviewed_at: string | null;
+}
+
+export interface PendingReview {
+  fisherman_profile_id: string;
+  user_id: string;
+  phone_number: string;
+  boat_registration_no: string | null;
+  access_pass_no: string | null;
+  high_sea_pass_no: string | null;
+  document_status: DocumentStatus;
+}
+
 export interface CatchLog {
   id: string;
   fisherman_id: string;
@@ -132,7 +158,13 @@ export const verifyOtp = (phone_number: string, code: string, role: UserRole) =>
 // ---- Onboarding ----
 
 export const upsertFishermanProfile = (userId: string, payload: Record<string, unknown>) =>
-  request(`/onboarding/${userId}/fisherman-profile`, { method: "PUT", body: JSON.stringify(payload) });
+  request<FishermanProfile>(`/onboarding/${userId}/fisherman-profile`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+
+export const getFishermanProfile = (userId: string) =>
+  request<FishermanProfile>(`/onboarding/${userId}/fisherman-profile`);
 
 export const upsertVendorProfile = (userId: string, payload: Record<string, unknown>) =>
   request(`/onboarding/${userId}/vendor-profile`, { method: "PUT", body: JSON.stringify(payload) });
@@ -202,3 +234,19 @@ export const logCatch = (fishermanUserId: string, payload: Record<string, unknow
 
 export const listCatchLogs = (fishermanUserId: string) =>
   request<CatchLog[]>(`/catch-logs/for-fisherman/${fishermanUserId}`);
+
+// ---- Document verification (admin review of self-reported boat docs) ----
+
+export const listPendingReviews = (reviewerUserId: string) =>
+  request<PendingReview[]>(`/verification/pending?reviewer_user_id=${reviewerUserId}`);
+
+export const reviewDocuments = (
+  fishermanProfileId: string,
+  reviewerUserId: string,
+  status: "verified" | "rejected",
+  notes?: string
+) =>
+  request<FishermanProfile>(`/verification/${fishermanProfileId}/review?reviewer_user_id=${reviewerUserId}`, {
+    method: "POST",
+    body: JSON.stringify({ status, notes: notes || null }),
+  });

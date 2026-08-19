@@ -95,6 +95,73 @@ def test_fisherman_onboarding_and_catch_log_gate():
     assert len(logs.json()) == 1
 
 
+def test_first_ever_profile_save_with_docs_still_queues_for_review():
+    # Regression test: submitting boat_registration_no on the very first PUT
+    # (profile row doesn't exist yet) previously left document_status stuck
+    # at "unverified" instead of "pending_review", because the has_docs check
+    # ran against a freshly-constructed ORM object before the column default
+    # had been applied. Only caught by testing this in a single call — doing
+    # it as profile-then-update (like the test below) doesn't reproduce it.
+    fisherman_id = _register_and_verify("+919800000006", "fisherman")
+    profile = client.put(
+        f"/onboarding/{fisherman_id}/fisherman-profile",
+        json={"boat_type": "motorized", "boat_registration_no": "MH-01-XY-9999"},
+    ).json()
+    assert profile["document_status"] == "pending_review"
+
+
+def test_document_review_workflow():
+    fisherman_id = _register_and_verify("+919800000004", "fisherman")
+    admin_id = _register_and_verify("+919800000005", "admin")
+
+    # No documents submitted yet -> unverified, nothing pending
+    profile = client.put(f"/onboarding/{fisherman_id}/fisherman-profile", json={"boat_type": "traditional"}).json()
+    assert profile["document_status"] == "unverified"
+
+    pending = client.get("/verification/pending", params={"reviewer_user_id": admin_id})
+    assert pending.status_code == 200
+    assert profile["id"] not in [p["fisherman_profile_id"] for p in pending.json()]
+
+    # Submitting a document number queues it for review
+    profile = client.put(
+        f"/onboarding/{fisherman_id}/fisherman-profile",
+        json={"boat_type": "traditional", "boat_registration_no": "MH-01-AB-1234"},
+    ).json()
+    assert profile["document_status"] == "pending_review"
+
+    pending = client.get("/verification/pending", params={"reviewer_user_id": admin_id}).json()
+    assert any(p["fisherman_profile_id"] == profile["id"] for p in pending)
+
+    # A non-admin cannot review
+    forbidden = client.post(
+        f"/verification/{profile['id']}/review",
+        params={"reviewer_user_id": fisherman_id},
+        json={"status": "verified"},
+    )
+    assert forbidden.status_code == 403
+
+    # Admin approves
+    reviewed = client.post(
+        f"/verification/{profile['id']}/review",
+        params={"reviewer_user_id": admin_id},
+        json={"status": "verified", "notes": "Checked against harbour records in person"},
+    )
+    assert reviewed.status_code == 200, reviewed.text
+    assert reviewed.json()["document_status"] == "verified"
+    assert reviewed.json()["document_reviewed_by_user_id"] == admin_id
+
+    # Now resolved, drops off the pending queue
+    pending = client.get("/verification/pending", params={"reviewer_user_id": admin_id}).json()
+    assert profile["id"] not in [p["fisherman_profile_id"] for p in pending]
+
+    # Re-saving an unrelated field afterwards must not silently downgrade a verified profile
+    unchanged = client.put(
+        f"/onboarding/{fisherman_id}/fisherman-profile",
+        json={"boat_type": "traditional", "boat_registration_no": "MH-01-AB-1234", "target_species": "Pomfret"},
+    ).json()
+    assert unchanged["document_status"] == "verified"
+
+
 def test_marketplace_rfq_flow():
     harbours = client.get("/harbours").json()
     karanja = next(h for h in harbours if h["name"] == "Karanja")

@@ -3,7 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from app.models.user import UserRole, KycStatus, BoatType
+from app.models.user import UserRole, KycStatus, BoatType, DocumentStatus
 
 
 class OtpRequest(BaseModel):
@@ -40,9 +40,30 @@ class FishermanProfileIn(BaseModel):
 class FishermanProfileOut(FishermanProfileIn):
     id: str
     user_id: str
+    document_status: DocumentStatus
+    document_review_notes: Optional[str] = None
+    document_reviewed_by_user_id: Optional[str] = None
+    document_reviewed_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
+
+class DocumentReviewIn(BaseModel):
+    status: DocumentStatus
+    notes: Optional[str] = None
+
+
+class PendingReviewOut(BaseModel):
+    """Fisherman profile + enough user context for a reviewer to act on it."""
+
+    fisherman_profile_id: str
+    user_id: str
+    phone_number: str
+    boat_registration_no: Optional[str] = None
+    access_pass_no: Optional[str] = None
+    high_sea_pass_no: Optional[str] = None
+    document_status: DocumentStatus
 
 
 class CooperativeProfileIn(BaseModel):
