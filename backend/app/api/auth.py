@@ -20,7 +20,11 @@ def verify_otp(payload: OtpVerify, db: Session = Depends(get_db)):
     if not otp_service.verify_otp(payload.phone_number, payload.code):
         raise HTTPException(status_code=400, detail="Invalid or expired OTP")
 
-    user = db.query(User).filter(User.phone_number == payload.phone_number).first()
+    user = (
+        db.query(User)
+        .filter(User.phone_number == payload.phone_number, User.role == payload.role)
+        .first()
+    )
     if user is None:
         user = User(
             phone_number=payload.phone_number,

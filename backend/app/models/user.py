@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, String, DateTime, Enum, Boolean, ForeignKey, Integer
+from sqlalchemy import Column, String, DateTime, Enum, Boolean, ForeignKey, Integer, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -29,10 +29,20 @@ class KycStatus(str, enum.Enum):
 
 
 class User(Base):
+    """
+    One phone number can hold a separate account per role — a boat owner who
+    also runs a gear shop, a cooperative officer who also fishes, etc. Login
+    looks up (phone_number, role) together, not phone_number alone, so
+    picking a different role on the login screen for a number you've already
+    used creates/returns that role's own account instead of ignoring your
+    choice and returning whatever role you first registered as.
+    """
+
     __tablename__ = "users"
+    __table_args__ = (UniqueConstraint("phone_number", "role", name="uq_users_phone_role"),)
 
     id = Column(String, primary_key=True, default=gen_uuid)
-    phone_number = Column(String, unique=True, nullable=False, index=True)
+    phone_number = Column(String, nullable=False, index=True)
     role = Column(Enum(UserRole), nullable=False)
     kyc_status = Column(Enum(KycStatus), default=KycStatus.unverified, nullable=False)
     aadhaar_last4 = Column(String, nullable=True)  # store only last 4 digits, never full number

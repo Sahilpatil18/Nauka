@@ -56,6 +56,20 @@ def _register_and_verify(phone: str, role: str) -> str:
     return resp.json()["id"]
 
 
+def test_same_phone_number_can_hold_a_separate_account_per_role():
+    # Regression test: a phone number that had already registered as one
+    # role used to be silently returned as that role forever, ignoring
+    # whichever role was picked on later logins (phone_number was globally
+    # unique). Same phone, different roles, must now be independent accounts.
+    phone = "+919800000007"
+    fisherman_id = _register_and_verify(phone, "fisherman")
+    vendor_id = _register_and_verify(phone, "vendor")
+    assert fisherman_id != vendor_id
+
+    fisherman_again = _register_and_verify(phone, "fisherman")
+    assert fisherman_again == fisherman_id
+
+
 def test_fisherman_onboarding_and_catch_log_gate():
     harbours = client.get("/harbours").json()
     assert len(harbours) == 8
