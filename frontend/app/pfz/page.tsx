@@ -5,6 +5,17 @@ import { getPfz, PFZAdvisory, ApiError } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { ErrorText, HelpText } from "@/components/ui/Field";
 import { EmptyState, LoadingRows } from "@/components/ui/EmptyState";
+import Badge from "@/components/ui/Badge";
+
+function dataQualityBadge(a: PFZAdvisory) {
+  const zoneIsReal = a.source.includes("real PFZ advisory");
+  const tempIsReal = a.source.toLowerCase().includes("real erddap") || a.source.toLowerCase().includes("real temperature");
+
+  if (zoneIsReal && tempIsReal) return <Badge tone="green">Live zone + temp</Badge>;
+  if (zoneIsReal) return <Badge tone="teal">Live zone</Badge>;
+  if (tempIsReal) return <Badge tone="teal">Live temp</Badge>;
+  return <Badge tone="slate">Mock</Badge>;
+}
 
 export default function PfzPage() {
   const [advisories, setAdvisories] = useState<PFZAdvisory[]>([]);
@@ -23,13 +34,16 @@ export default function PfzPage() {
       <div>
         <h1 className="text-xl font-semibold text-slate-900">Potential Fishing Zones</h1>
         <p className="text-sm text-slate-500 mt-1">
-          INCOIS PFZ advisories with sea surface temperature and chlorophyll overlays.
+          Maharashtra PFZ advisories — the same data INCOIS publishes, matched to our harbours.
         </p>
       </div>
 
       <HelpText>
-        No scoring model yet — this is the raw advisory passthrough (decision #4 in
-        docs/phase1_decisions.md).
+        Zone position/bearing/distance is pulled live from INCOIS&apos;s public advisory page where
+        available; temperature is cross-checked against their public ERDDAP server. Neither always
+        has coverage for every zone, so some rows fall back to a clearly-marked estimate — check
+        the badge on each row, and hover it for the exact source. Chlorophyll is always an estimate;
+        no live public feed exists for it.
       </HelpText>
 
       {error && <ErrorText>{error}</ErrorText>}
@@ -41,37 +55,52 @@ export default function PfzPage() {
           <EmptyState title="No advisories available" />
         </Card>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {advisories.map((a) => (
-            <Card key={a.id}>
-              <h2 className="font-medium text-slate-900 leading-snug">
-                {a.reference_point || `${a.latitude}, ${a.longitude}`}
-              </h2>
-              <p className="text-xs text-slate-400 mt-1">
-                {a.latitude.toFixed(2)}, {a.longitude.toFixed(2)} · {a.source}
-              </p>
-
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                {a.sea_surface_temp_c != null && (
-                  <div className="rounded-lg bg-slate-50 px-3 py-2">
-                    <p className="text-xs text-slate-500">SST</p>
-                    <p className="text-sm font-semibold text-slate-900">{a.sea_surface_temp_c}°C</p>
-                  </div>
-                )}
-                {a.chlorophyll_mg_m3 != null && (
-                  <div className="rounded-lg bg-slate-50 px-3 py-2">
-                    <p className="text-xs text-slate-500">Chlorophyll</p>
-                    <p className="text-sm font-semibold text-slate-900">{a.chlorophyll_mg_m3} mg/m³</p>
-                  </div>
-                )}
-              </div>
-
-              <p className="text-xs text-slate-400 mt-4 pt-3 border-t border-slate-100">
-                Valid {new Date(a.valid_from).toLocaleDateString()} – {new Date(a.valid_to).toLocaleDateString()}
-              </p>
-            </Card>
-          ))}
-        </div>
+        <Card padded={false} className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[920px]">
+              <thead className="bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">
+                <tr>
+                  <th className="px-4 sm:px-5 py-3">From the coast of</th>
+                  <th className="px-4 sm:px-5 py-3">Direction</th>
+                  <th className="px-4 sm:px-5 py-3 text-right">Bearing (deg)</th>
+                  <th className="px-4 sm:px-5 py-3 text-right">Distance (km) From-To</th>
+                  <th className="px-4 sm:px-5 py-3 text-right">Depth (mtr) From-To</th>
+                  <th className="px-4 sm:px-5 py-3">Latitude (dms)</th>
+                  <th className="px-4 sm:px-5 py-3">Longitude (dms)</th>
+                  <th className="px-4 sm:px-5 py-3 text-right">SST</th>
+                  <th className="px-4 sm:px-5 py-3">Data</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {advisories.map((a) => (
+                  <tr key={a.id} className="hover:bg-slate-50/60">
+                    <td className="px-4 sm:px-5 py-3 font-medium text-slate-900">
+                      {a.landing_center || a.reference_point || "—"}
+                    </td>
+                    <td className="px-4 sm:px-5 py-3 text-slate-600">{a.direction || "—"}</td>
+                    <td className="px-4 sm:px-5 py-3 text-right text-slate-600 tabular-nums">
+                      {a.bearing_deg ?? "—"}
+                    </td>
+                    <td className="px-4 sm:px-5 py-3 text-right text-slate-600 tabular-nums">
+                      {a.distance_km_range || "—"}
+                    </td>
+                    <td className="px-4 sm:px-5 py-3 text-right text-slate-600 tabular-nums">
+                      {a.depth_m_range || "—"}
+                    </td>
+                    <td className="px-4 sm:px-5 py-3 text-slate-600 whitespace-nowrap">{a.latitude_dms || "—"}</td>
+                    <td className="px-4 sm:px-5 py-3 text-slate-600 whitespace-nowrap">{a.longitude_dms || "—"}</td>
+                    <td className="px-4 sm:px-5 py-3 text-right font-medium text-slate-900 tabular-nums">
+                      {a.sea_surface_temp_c != null ? `${a.sea_surface_temp_c}°C` : "—"}
+                    </td>
+                    <td className="px-4 sm:px-5 py-3" title={a.source}>
+                      {dataQualityBadge(a)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       )}
     </div>
   );

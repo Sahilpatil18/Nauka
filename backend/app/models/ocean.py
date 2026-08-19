@@ -27,6 +27,17 @@ class PFZAdvisory(Base):
     longitude = Column(Float, nullable=False)
     reference_point = Column(String, nullable=True)  # e.g. "12 NM West of Sassoon Dock"
 
+    # Structured fields matching INCOIS's own PFZ table columns exactly
+    # (landing_center = their "From the coast of"), so the UI can show the
+    # same table a person sees on incois.gov.in rather than our own summary.
+    landing_center = Column(String, nullable=True)
+    direction = Column(String, nullable=True)  # e.g. "SW"
+    bearing_deg = Column(Float, nullable=True)
+    distance_km_range = Column(String, nullable=True)  # e.g. "63-68" — a range, not a single value
+    depth_m_range = Column(String, nullable=True)  # e.g. "25-30"
+    latitude_dms = Column(String, nullable=True)  # e.g. "19 35 5 N"
+    longitude_dms = Column(String, nullable=True)  # e.g. "72 6 32 E"
+
     sea_surface_temp_c = Column(Float, nullable=True)
     chlorophyll_mg_m3 = Column(Float, nullable=True)
 

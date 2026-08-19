@@ -82,6 +82,13 @@ export interface PFZAdvisory {
   latitude: number;
   longitude: number;
   reference_point: string | null;
+  landing_center: string | null;
+  direction: string | null;
+  bearing_deg: number | null;
+  distance_km_range: string | null;
+  depth_m_range: string | null;
+  latitude_dms: string | null;
+  longitude_dms: string | null;
   sea_surface_temp_c: number | null;
   chlorophyll_mg_m3: number | null;
   valid_from: string;

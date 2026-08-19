@@ -80,11 +80,56 @@ _KNOWN_HARBOUR_KEYWORDS = {
 }
 
 _MOCK_ZONES = [
-    {"reference_point": "12 NM West of Sassoon Dock", "latitude": 18.92, "longitude": 72.62},
-    {"reference_point": "18 NM Southwest of Karanja", "latitude": 18.73, "longitude": 72.75},
-    {"reference_point": "22 NM West of Ratnagiri", "latitude": 16.99, "longitude": 73.10},
-    {"reference_point": "15 NM Northwest of Malvan", "latitude": 16.10, "longitude": 73.30},
-    {"reference_point": "10 NM West of Satpati", "latitude": 19.75, "longitude": 72.65},
+    {
+        "reference_point": "12 NM West of Sassoon Dock",
+        "landing_center": "Sassoon Dock",
+        "direction": "W",
+        "bearing_deg": 270,
+        "distance_km_range": "20-24",
+        "depth_m_range": "20-30",
+        "latitude": 18.92,
+        "longitude": 72.62,
+    },
+    {
+        "reference_point": "18 NM Southwest of Karanja",
+        "landing_center": "Karanja",
+        "direction": "SW",
+        "bearing_deg": 225,
+        "distance_km_range": "31-35",
+        "depth_m_range": "25-35",
+        "latitude": 18.73,
+        "longitude": 72.75,
+    },
+    {
+        "reference_point": "22 NM West of Ratnagiri",
+        "landing_center": "Ratnagiri",
+        "direction": "W",
+        "bearing_deg": 270,
+        "distance_km_range": "38-42",
+        "depth_m_range": "40-55",
+        "latitude": 16.99,
+        "longitude": 73.10,
+    },
+    {
+        "reference_point": "15 NM Northwest of Malvan",
+        "landing_center": "Malvan",
+        "direction": "NW",
+        "bearing_deg": 315,
+        "distance_km_range": "26-30",
+        "depth_m_range": "18-28",
+        "latitude": 16.10,
+        "longitude": 73.30,
+    },
+    {
+        "reference_point": "10 NM West of Satpati",
+        "landing_center": "Satpati",
+        "direction": "W",
+        "bearing_deg": 270,
+        "distance_km_range": "17-21",
+        "depth_m_range": "15-25",
+        "latitude": 19.75,
+        "longitude": 72.65,
+    },
 ]
 
 
@@ -135,6 +180,18 @@ def _dms_to_decimal(dms: str) -> float | None:
     return round(decimal, 5)
 
 
+def _decimal_to_dms(value: float, positive_hemisphere: str, negative_hemisphere: str) -> str:
+    """19.58472 -> '19 35 5 N' — inverse of _dms_to_decimal, used only for the
+    fully-mock fallback zones so the table has the same columns either way."""
+    hemisphere = positive_hemisphere if value >= 0 else negative_hemisphere
+    value = abs(value)
+    degrees = int(value)
+    minutes_full = (value - degrees) * 60
+    minutes = int(minutes_full)
+    seconds = round((minutes_full - minutes) * 60)
+    return f"{degrees} {minutes} {seconds} {hemisphere}"
+
+
 def _fetch_incois_pfz_rows(sector_id: str = _MAHARASHTRA_SECTOR_ID) -> list[dict]:
     """
     Scrapes INCOIS's public Marine Fisheries text-data page. Session-based
@@ -153,7 +210,7 @@ def _fetch_incois_pfz_rows(sector_id: str = _MAHARASHTRA_SECTOR_ID) -> list[dict
     cells = re.findall(r'<td align="center">([^<]*)</td>', html)
     rows = []
     for i in range(0, len(cells) - 6, 7):
-        name, direction, _bearing, distance_km, _depth_m, lat_dms, lon_dms = cells[i : i + 7]
+        name, direction, bearing, distance_km, depth_m, lat_dms, lon_dms = cells[i : i + 7]
         latitude = _dms_to_decimal(lat_dms)
         longitude = _dms_to_decimal(lon_dms)
         if latitude is None or longitude is None:
@@ -162,9 +219,13 @@ def _fetch_incois_pfz_rows(sector_id: str = _MAHARASHTRA_SECTOR_ID) -> list[dict
             {
                 "name": name.strip(),
                 "direction": direction.strip(),
+                "bearing_deg": bearing.strip(),
                 "distance_km": distance_km.strip(),
+                "depth_m": depth_m.strip(),
                 "latitude": latitude,
                 "longitude": longitude,
+                "latitude_dms": lat_dms.strip(),
+                "longitude_dms": lon_dms.strip(),
             }
         )
     return rows
@@ -204,6 +265,13 @@ def _fetch_real_pfz_advisories() -> list[dict] | None:
         advisories.append(
             {
                 "reference_point": f"{row['distance_km']} km {row['direction']} of {row['name']} (near {matched_harbour})",
+                "landing_center": row["name"],
+                "direction": row["direction"],
+                "bearing_deg": float(row["bearing_deg"]) if row["bearing_deg"] else None,
+                "distance_km_range": row["distance_km"],
+                "depth_m_range": row["depth_m"],
+                "latitude_dms": row["latitude_dms"],
+                "longitude_dms": row["longitude_dms"],
                 "latitude": row["latitude"],
                 "longitude": row["longitude"],
                 "sea_surface_temp_c": sea_surface_temp_c,
@@ -232,6 +300,8 @@ def _build_mock_advisories() -> list[dict]:
         advisories.append(
             {
                 **zone,
+                "latitude_dms": _decimal_to_dms(zone["latitude"], "N", "S"),
+                "longitude_dms": _decimal_to_dms(zone["longitude"], "E", "W"),
                 "sea_surface_temp_c": sea_surface_temp_c,
                 "chlorophyll_mg_m3": round(random.uniform(0.3, 2.5), 2),
                 "valid_from": now,
