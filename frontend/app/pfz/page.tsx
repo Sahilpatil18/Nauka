@@ -28,12 +28,7 @@ function formatSourceUpdatedAt(iso: string) {
 
 function dataQualityBadge(a: PFZAdvisory) {
   const zoneIsReal = a.source.includes("real PFZ advisory");
-  const tempIsReal = a.source.toLowerCase().includes("real erddap") || a.source.toLowerCase().includes("real temperature");
-
-  if (zoneIsReal && tempIsReal) return <Badge tone="green">Live zone + temp</Badge>;
-  if (zoneIsReal) return <Badge tone="teal">Live zone</Badge>;
-  if (tempIsReal) return <Badge tone="teal">Live temp</Badge>;
-  return <Badge tone="slate">Mock</Badge>;
+  return zoneIsReal ? <Badge tone="green">Live</Badge> : <Badge tone="slate">Mock</Badge>;
 }
 
 export default function PfzPage() {
@@ -76,10 +71,8 @@ export default function PfzPage() {
 
       <HelpText>
         Zone position/bearing/distance is pulled live from INCOIS&apos;s public advisory page where
-        available; temperature is cross-checked against their public ERDDAP server. Neither always
-        has coverage for every zone, so some rows fall back to a clearly-marked estimate — check
-        the badge on each row, and hover it for the exact source. Chlorophyll is always an estimate;
-        no live public feed exists for it.
+        available; not every zone has real data, so some rows fall back to a clearly-marked
+        estimate — check the badge on each row, and hover it for the exact source.
       </HelpText>
 
       {error && <ErrorText>{error}</ErrorText>}
@@ -103,7 +96,6 @@ export default function PfzPage() {
                   <th className="px-4 sm:px-5 py-3 text-right">Depth (mtr) From-To</th>
                   <th className="px-4 sm:px-5 py-3">Latitude (dms)</th>
                   <th className="px-4 sm:px-5 py-3">Longitude (dms)</th>
-                  <th className="px-4 sm:px-5 py-3 text-right">SST</th>
                   <th className="px-4 sm:px-5 py-3">Data</th>
                 </tr>
               </thead>
@@ -125,9 +117,6 @@ export default function PfzPage() {
                     </td>
                     <td className="px-4 sm:px-5 py-3 text-slate-600 whitespace-nowrap">{a.latitude_dms || "—"}</td>
                     <td className="px-4 sm:px-5 py-3 text-slate-600 whitespace-nowrap">{a.longitude_dms || "—"}</td>
-                    <td className="px-4 sm:px-5 py-3 text-right font-medium text-slate-900 tabular-nums">
-                      {a.sea_surface_temp_c != null ? `${a.sea_surface_temp_c}°C` : "—"}
-                    </td>
                     <td className="px-4 sm:px-5 py-3" title={a.source}>
                       {dataQualityBadge(a)}
                     </td>
