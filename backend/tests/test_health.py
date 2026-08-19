@@ -72,7 +72,10 @@ def test_same_phone_number_can_hold_a_separate_account_per_role():
 
 def test_fisherman_onboarding_and_catch_log_gate():
     harbours = client.get("/harbours").json()
-    assert len(harbours) == 8
+    # 8 original Phase 1 harbours + INCOIS's currently-published landing
+    # centers (see seed.py) — not asserting an exact count since that list
+    # is a point-in-time snapshot and will grow as seed.py is re-run.
+    assert len(harbours) >= 8
     karanja = next(h for h in harbours if h["name"] == "Karanja")
 
     user_id = _register_and_verify("+919800000001", "fisherman")
