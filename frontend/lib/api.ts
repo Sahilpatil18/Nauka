@@ -84,8 +84,6 @@ export interface PFZAdvisory {
   reference_point: string | null;
   sea_surface_temp_c: number | null;
   chlorophyll_mg_m3: number | null;
-  alert_severity: string | null;
-  alert_message: string | null;
   valid_from: string;
   valid_to: string;
   source: string;

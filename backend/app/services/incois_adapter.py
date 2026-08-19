@@ -36,8 +36,6 @@ def _mock_advisories() -> list[dict]:
                 **zone,
                 "sea_surface_temp_c": round(random.uniform(26.0, 29.5), 1),
                 "chlorophyll_mg_m3": round(random.uniform(0.3, 2.5), 2),
-                "alert_severity": None,
-                "alert_message": None,
                 "valid_from": now,
                 "valid_to": now + timedelta(days=2),
                 "source": "INCOIS (mock — no live access configured)",

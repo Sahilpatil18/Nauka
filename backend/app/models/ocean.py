@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, String, Float, DateTime, Text
+from sqlalchemy import Column, String, Float, DateTime
 
 from app.database import Base
 
@@ -29,11 +29,6 @@ class PFZAdvisory(Base):
 
     sea_surface_temp_c = Column(Float, nullable=True)
     chlorophyll_mg_m3 = Column(Float, nullable=True)
-
-    # Left in deliberately for when the safety/weather gate (decision #2) is built —
-    # not populated or read by any endpoint yet.
-    alert_severity = Column(String, nullable=True)
-    alert_message = Column(Text, nullable=True)
 
     valid_from = Column(DateTime, nullable=False)
     valid_to = Column(DateTime, nullable=False)

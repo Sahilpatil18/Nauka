@@ -5,7 +5,6 @@ import { getPfz, PFZAdvisory, ApiError } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { ErrorText, HelpText } from "@/components/ui/Field";
 import { EmptyState, LoadingRows } from "@/components/ui/EmptyState";
-import Badge from "@/components/ui/Badge";
 
 export default function PfzPage() {
   const [advisories, setAdvisories] = useState<PFZAdvisory[]>([]);
@@ -45,12 +44,9 @@ export default function PfzPage() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {advisories.map((a) => (
             <Card key={a.id}>
-              <div className="flex items-start justify-between gap-2">
-                <h2 className="font-medium text-slate-900 leading-snug">
-                  {a.reference_point || `${a.latitude}, ${a.longitude}`}
-                </h2>
-                {a.alert_severity && <Badge tone="amber">{a.alert_severity}</Badge>}
-              </div>
+              <h2 className="font-medium text-slate-900 leading-snug">
+                {a.reference_point || `${a.latitude}, ${a.longitude}`}
+              </h2>
               <p className="text-xs text-slate-400 mt-1">
                 {a.latitude.toFixed(2)}, {a.longitude.toFixed(2)} · {a.source}
               </p>
@@ -69,12 +65,6 @@ export default function PfzPage() {
                   </div>
                 )}
               </div>
-
-              {a.alert_message && (
-                <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
-                  {a.alert_message}
-                </div>
-              )}
 
               <p className="text-xs text-slate-400 mt-4 pt-3 border-t border-slate-100">
                 Valid {new Date(a.valid_from).toLocaleDateString()} – {new Date(a.valid_to).toLocaleDateString()}

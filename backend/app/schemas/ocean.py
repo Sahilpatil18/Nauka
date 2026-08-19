@@ -11,8 +11,6 @@ class PFZAdvisoryOut(BaseModel):
     reference_point: Optional[str] = None
     sea_surface_temp_c: Optional[float] = None
     chlorophyll_mg_m3: Optional[float] = None
-    alert_severity: Optional[str] = None
-    alert_message: Optional[str] = None
     valid_from: datetime
     valid_to: datetime
     source: str
