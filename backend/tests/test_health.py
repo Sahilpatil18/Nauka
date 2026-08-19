@@ -83,10 +83,16 @@ def test_fisherman_onboarding_and_catch_log_gate():
     )
     assert profile_resp.status_code == 200, profile_resp.text
 
-    # Browsing PFZ works pre-KYC (decision #3)
+    # Browsing PFZ works pre-KYC (decision #3). Count isn't fixed at 5
+    # anymore — the adapter tries a real INCOIS scrape first (currently
+    # returns 8 real Maharashtra zones) and only falls back to the 5 fully-
+    # mock zones if that scrape fails or matches none of our harbours. This
+    # test now depends on real network access to INCOIS/ERDDAP; if that's
+    # ever a CI reliability problem, the adapter is the place to add a way
+    # to force the mock path for tests.
     pfz_resp = client.get("/pfz")
     assert pfz_resp.status_code == 200
-    assert len(pfz_resp.json()) == 5
+    assert len(pfz_resp.json()) > 0
 
     # Logging a catch before full KYC must be rejected
     catch_payload = {

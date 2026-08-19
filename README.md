@@ -89,28 +89,30 @@ clean (TypeScript + ESLint, zero errors).
 | Role 3 — Equipment & Gear Vendors | Done — profile + catalog + RFQ inbox |
 | Role 4 — Exporters & B2B Buyers | Done — profile + RFQ requests; "direct interest pinging to societies" not built yet |
 | Marine Equipment Catalog (B2B Marketplace) | Done — categories, products, port-location filter, RFQ |
-| PFZ & Ocean Data | Partial real data as of 2026-08-19 — see below |
+| PFZ & Ocean Data | Real PFZ zones (INCOIS's own public data) as of 2026-08-19 — see below |
 | Harbour Landings & Daily Price Index | Done — manual entry + computed 7-day trend |
 | Catch logging | Added beyond the doc (decision #1) — see `docs/phase1_decisions.md` |
 | Safety/weather gate | Not built — data model has room for it, no logic yet |
 
 ## Known gaps — real, not hidden
 
-- **No formal INCOIS API/partnership exists — but real data is flowing for one
-  parameter as of 2026-08-19.** INCOIS runs a public, unauthenticated ERDDAP
-  server (`erddap.incois.gov.in`) with real satellite/ARGO-float ocean data.
-  Investigated directly: most of its datasets are stale (its SST dataset stops
-  in 2010, chlorophyll in 2006), but one ARGO objective-analysis dataset is
-  genuinely current (~3-week lag). `app/services/incois_adapter.py` now pulls
-  **real temperature** from it per zone, falling back to mock only where that
-  grid has no nearby data (common right at the coast — ARGO floats operate in
-  open water). **Chlorophyll and the actual PFZ zone boundaries/lines are
-  still fully mock** — no live public source was found for either; the real
-  "PFZ advisory" product (the demarcated zones INCOIS actually publishes) is
-  only available as web maps and image/text bulletins, not an open API. Every
-  advisory's `source` field states plainly which parts are real vs mock —
-  check it rather than assuming. A formal `INCOIS_API_BASE_URL`/`INCOIS_API_KEY`
-  partnership would still be the way to get the real zone-boundary product.
+- **No formal INCOIS API/partnership exists — but real PFZ zone data is
+  flowing as of 2026-08-19.** INCOIS's own public website
+  (`incois.gov.in/MarineFisheries/TextData?secid=SEC002`) publishes real,
+  current, daily PFZ advisories for Maharashtra as a plain HTML table — named
+  landing centers with bearing/distance/depth and each zone's actual
+  lat/long. No login, no API key. `app/services/incois_adapter.py` now
+  scrapes this (session-based page navigation, not a documented API — could
+  break silently if INCOIS restructures the page, which is why it always
+  falls back to mock rather than erroring) and cross-references each real
+  zone against INCOIS's separate public ERDDAP server
+  (`erddap.incois.gov.in`) for real temperature. Net result as of last
+  check: **8 real Maharashtra PFZ zones**, matched to 6 of our 8 seeded
+  harbours (Karanja and Harnai don't appear in this sector's table), **4 of
+  them with real temperature too**. **Chlorophyll is still fully mock** — no
+  live public feed exists for it (the one dataset that had it stopped
+  updating in 2006). Every advisory's `source` field states plainly which
+  parts are real vs mock for that specific row — check it, don't assume.
 - **No session/token auth.** Endpoints take a `user_id` directly rather than a
   bearer token. Fine for building against locally; needs a real auth layer
   (JWT or similar) before this is exposed to real users.

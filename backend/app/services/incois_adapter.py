@@ -1,35 +1,46 @@
 """
-Adapter around INCOIS ocean data. No formal INCOIS API partnership/credentials
-exist — but INCOIS runs a public, unauthenticated ERDDAP server
-(erddap.incois.gov.in) that publishes real satellite/ARGO-float-derived ocean
-data. Investigated 2026-08-19: most datasets on it are stale (SST dataset
-stops in 2010, chlorophyll in 2006), but the ARGO 10-day objective-analysis
-dataset is genuinely current (~3-week lag). That's real temperature data, not
-the official "PFZ zone" advisory product itself (no open API for the actual
-zone boundaries/lines was found — those are only published as web maps and
-image/text bulletins on incois.gov.in).
+Adapter around INCOIS ocean/PFZ data. No formal INCOIS API partnership or
+credentials exist, but two real public sources were found and investigated
+directly on 2026-08-19:
 
-So this is honestly a partial integration:
-  - sea_surface_temp_c: REAL, from INCOIS's own public ERDDAP server, when
-    a nearby grid point has data (near-coast points are frequently sparse —
-    ARGO floats operate in open water, not right against the shore).
-  - chlorophyll_mg_m3: still mocked. No live public chlorophyll feed exists;
-    the one dataset that had it stopped updating in 2006.
-  - reference_point / zone geometry: still mocked. No public source for the
-    actual demarcated PFZ zone lines was found.
+1. incois.gov.in/MarineFisheries/TextData?secid=SEC002 — INCOIS's own public
+   website publishes real, current, daily PFZ advisories for Maharashtra as a
+   plain HTML table: named landing centers with bearing/distance/depth and
+   the actual lat/long of each fishing zone. No login, no API key — this is
+   session-based server navigation (visit the page, select a sector, read
+   the result), not a documented/versioned API. INCOIS could restructure
+   this page at any time and silently break the parser below — every caller
+   treats a parse failure as "no real data available", never as an error,
+   and falls back to the fully-mock zones.
+2. erddap.incois.gov.in — a public ERDDAP data server. Most of its datasets
+   are stale (SST archive stops in 2010, chlorophyll in 2006), but its ARGO
+   10-day objective-analysis dataset is genuinely current (~3-week lag) and
+   is used here to attach a real temperature to each real zone from (1).
 
-Each advisory's `source` field says plainly which parts are real vs mock —
-never claim more than what's actually true.
+So the honest picture:
+  - reference_point / latitude / longitude: REAL, for whichever of our 8
+    seeded harbours actually appear in INCOIS's Maharashtra table (as of
+    investigation: Satpati, Arnala, Sassoon Dock, Alibag, Ratnagiri,
+    Mirkarwada, and Malvan/Sindhudurg do; Karanja and Harnai don't appear in
+    this particular sector's table, so they still fall back to mock).
+  - sea_surface_temp_c: REAL where the ERDDAP grid has nearby coverage
+    (frequently missing right at the coast — ARGO floats operate in open
+    water), mock otherwise.
+  - chlorophyll_mg_m3: always mock. No live public feed exists for it.
 
-INCOIS's ERDDAP server sends an incomplete TLS chain (missing intermediate
-cert) — confirmed via openssl this is a server misconfiguration, not a
-fraudulent/mismatched cert (GlobalSign-issued, correct hostname, valid
-dates). Fixed properly by adding the one legitimate missing intermediate
-(fetched from GlobalSign's own CA Issuers URL) to the trust store, not by
-disabling verification.
+Every advisory's `source` field says exactly which parts are real vs mock —
+never assume, read it.
+
+erddap.incois.gov.in sends an incomplete TLS chain (missing intermediate
+cert, confirmed via openssl to be a server misconfiguration, not a
+fraudulent/mismatched cert — GlobalSign-issued, correct hostname, valid
+dates). Fixed by adding the one legitimate missing intermediate to the trust
+store, not by disabling verification. incois.gov.in itself (the main site)
+sends a complete chain and needs no special handling.
 """
 import logging
 import random
+import re
 import ssl
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -45,6 +56,28 @@ _INCOIS_INTERMEDIATE_CERT = _CERT_DIR / "incois_intermediate.pem"
 
 _ERDDAP_BASE = "https://erddap.incois.gov.in/erddap"
 _ERDDAP_TEMP_DATASET = "incois_argo_10day_McCreary"  # confirmed current as of 2026-08-19
+
+_INCOIS_BASE = "https://incois.gov.in"
+_MAHARASHTRA_SECTOR_ID = "SEC002"  # confirmed 2026-08-19 by checking the page directly
+
+# Maps a normalized substring found in INCOIS's "From the coast of" column to
+# the matching harbour name already seeded in our own database (harbours.py).
+# Only rows matching one of these are kept — INCOIS's table has ~70 landing
+# centers for Maharashtra, far more granular than our 8 seeded harbours, and
+# querying real-time temperature for every single one isn't worth the cost.
+_KNOWN_HARBOUR_KEYWORDS = {
+    "karanja": "Karanja",
+    "alibag": "Alibag",
+    "sasoondock": "Sassoon Dock",
+    "sassoon": "Sassoon Dock",
+    "arnala": "Arnala",
+    "ratnagiri": "Ratnagiri / Mirkarwada",
+    "mirkarwada": "Ratnagiri / Mirkarwada",
+    "malvan": "Malvan",
+    "sindhudurg": "Malvan",
+    "harnai": "Harnai",
+    "satpati": "Satpati",
+}
 
 _MOCK_ZONES = [
     {"reference_point": "12 NM West of Sassoon Dock", "latitude": 18.92, "longitude": 72.62},
@@ -90,24 +123,117 @@ def _fetch_erddap_temperature(latitude: float, longitude: float) -> float | None
         return None
 
 
-def _build_advisories() -> list[dict]:
+def _dms_to_decimal(dms: str) -> float | None:
+    """'19 35 5 N' -> 19.58472. Returns None if the string doesn't parse."""
+    match = re.match(r"\s*(\d+)\s+(\d+)\s+([\d.]+)\s*([NSEW])\s*$", dms)
+    if not match:
+        return None
+    deg, minute, sec, hemisphere = match.groups()
+    decimal = float(deg) + float(minute) / 60 + float(sec) / 3600
+    if hemisphere in ("S", "W"):
+        decimal = -decimal
+    return round(decimal, 5)
+
+
+def _fetch_incois_pfz_rows(sector_id: str = _MAHARASHTRA_SECTOR_ID) -> list[dict]:
+    """
+    Scrapes INCOIS's public Marine Fisheries text-data page. Session-based
+    (visit the home page first to get a session cookie, then select the
+    sector) — not a documented API. The table itself is a plain HTML
+    <table><tr><td align="center">...</td></tr></table>, parsed here by
+    regex since the structure is simple and consistent; if INCOIS changes
+    it, this returns [] (via the cell-count check) rather than garbage.
+    """
+    with httpx.Client(timeout=15.0, follow_redirects=True) as client:
+        client.get(f"{_INCOIS_BASE}/MarineFisheries/TextDataHome?mfid=1&request_locale=en")
+        resp = client.get(f"{_INCOIS_BASE}/MarineFisheries/TextData?secid={sector_id}")
+        resp.raise_for_status()
+        html = resp.text
+
+    cells = re.findall(r'<td align="center">([^<]*)</td>', html)
+    rows = []
+    for i in range(0, len(cells) - 6, 7):
+        name, direction, _bearing, distance_km, _depth_m, lat_dms, lon_dms = cells[i : i + 7]
+        latitude = _dms_to_decimal(lat_dms)
+        longitude = _dms_to_decimal(lon_dms)
+        if latitude is None or longitude is None:
+            continue
+        rows.append(
+            {
+                "name": name.strip(),
+                "direction": direction.strip(),
+                "distance_km": distance_km.strip(),
+                "latitude": latitude,
+                "longitude": longitude,
+            }
+        )
+    return rows
+
+
+def _fetch_real_pfz_advisories() -> list[dict] | None:
+    """
+    Returns None if the scrape itself failed (network error, page changed
+    shape entirely) so the caller can log that distinctly from "scrape
+    worked but matched none of our known harbours" (which returns []).
+    Both cases fall back to the same place in get_pfz_advisories().
+    """
+    try:
+        rows = _fetch_incois_pfz_rows()
+    except Exception:
+        logger.warning("INCOIS PFZ text-data scrape failed", exc_info=True)
+        return None
+
+    now = datetime.utcnow()
+    advisories = []
+    for row in rows:
+        normalized = re.sub(r"[^a-z]", "", row["name"].lower())
+        matched_harbour = next(
+            (label for keyword, label in _KNOWN_HARBOUR_KEYWORDS.items() if keyword in normalized), None
+        )
+        if matched_harbour is None:
+            continue
+
+        real_temp = _fetch_erddap_temperature(row["latitude"], row["longitude"])
+        if real_temp is not None:
+            sea_surface_temp_c = real_temp
+            temp_note = "real ERDDAP temperature"
+        else:
+            sea_surface_temp_c = round(random.uniform(26.0, 29.5), 1)
+            temp_note = "mock temperature (no ERDDAP coverage here)"
+
+        advisories.append(
+            {
+                "reference_point": f"{row['distance_km']} km {row['direction']} of {row['name']} (near {matched_harbour})",
+                "latitude": row["latitude"],
+                "longitude": row["longitude"],
+                "sea_surface_temp_c": sea_surface_temp_c,
+                "chlorophyll_mg_m3": round(random.uniform(0.3, 2.5), 2),  # always mock — see module docstring
+                "valid_from": now,
+                "valid_to": now + timedelta(days=1),  # this source updates daily
+                "source": f"INCOIS real PFZ advisory (Maharashtra), {temp_note}, mock chlorophyll",
+            }
+        )
+    return advisories
+
+
+def _build_mock_advisories() -> list[dict]:
+    """Full fallback — used only if the real INCOIS scrape fails or matches nothing."""
     now = datetime.utcnow()
     advisories = []
     for zone in _MOCK_ZONES:
         real_temp = _fetch_erddap_temperature(zone["latitude"], zone["longitude"])
-
         if real_temp is not None:
             sea_surface_temp_c = real_temp
             source = "INCOIS ERDDAP (real temperature, mock zone geometry/chlorophyll)"
         else:
             sea_surface_temp_c = round(random.uniform(26.0, 29.5), 1)
-            source = "INCOIS ERDDAP had no data at this point - mock temperature used"
+            source = "Fully mock — INCOIS PFZ page and ERDDAP both had no usable data"
 
         advisories.append(
             {
                 **zone,
                 "sea_surface_temp_c": sea_surface_temp_c,
-                "chlorophyll_mg_m3": round(random.uniform(0.3, 2.5), 2),  # always mock — see module docstring
+                "chlorophyll_mg_m3": round(random.uniform(0.3, 2.5), 2),
                 "valid_from": now,
                 "valid_to": now + timedelta(days=2),
                 "source": source,
@@ -118,10 +244,8 @@ def _build_advisories() -> list[dict]:
 
 def _fetch_live() -> list[dict]:
     """
-    For a hypothetical future formal INCOIS PFZ API (actual zone boundaries,
-    not just ocean parameters) — only used once incois_api_base_url is
-    configured. Nothing currently sets it; _build_advisories() above is what
-    actually runs.
+    For a hypothetical future formal INCOIS API partnership — only used once
+    incois_api_base_url is configured. Nothing currently sets it.
     """
     with httpx.Client(timeout=10.0) as client:
         resp = client.get(
@@ -135,4 +259,8 @@ def _fetch_live() -> list[dict]:
 def get_pfz_advisories() -> list[dict]:
     if settings.incois_api_base_url:
         return _fetch_live()
-    return _build_advisories()
+
+    real = _fetch_real_pfz_advisories()
+    if real:
+        return real
+    return _build_mock_advisories()
