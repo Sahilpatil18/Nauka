@@ -55,8 +55,8 @@ export default function PfzPage() {
         <h1 className="text-xl font-semibold text-slate-900">Potential Fishing Zones</h1>
         <p className="text-sm text-slate-500 mt-1">
           Every zone INCOIS currently publishes for Maharashtra
-          {advisories.length > 0 && ` — ${advisories.length} zones`}. Rows near one of our 8
-          harbours are labeled; the rest are shown as-is.
+          {advisories.length > 0 && ` — ${advisories.length} zones`}. Rows near one of our named
+          harbours are labeled where that adds real information; the rest are shown as-is.
         </p>
       </div>
 

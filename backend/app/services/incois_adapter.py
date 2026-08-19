@@ -93,11 +93,27 @@ _KNOWN_HARBOUR_KEYWORDS = {
 }
 
 
-def _match_harbour_by_name(name: str) -> str | None:
-    """Whole-word match only — see the false-positive this replaced, above."""
+def _match_harbour_by_name(name: str, extra_harbour_names: set[str] | None = None) -> str | None:
+    """
+    Tries the original 8's fuzzy aliases first ("Satpati" for "Satpati(N)",
+    "Malvan" for "Sindhudurg (Malvan)", etc.) — that mapping is genuinely
+    useful because the label differs from the row's own name. Only falls
+    back to an exact match against extra_harbour_names (the ~49 harbours
+    seeded directly from a past INCOIS fetch, in seed.py's
+    PFZ_LANDING_CENTERS) if nothing aliased, and even then the caller
+    should skip the label when it's identical to the row's own name — see
+    reference_point construction below, which is otherwise pure tautology
+    ("Vadarai ... near Vadarai") for most of those 49.
+    """
     for token in re.findall(r"[a-z]+", name.lower()):
         if token in _KNOWN_HARBOUR_KEYWORDS:
             return _KNOWN_HARBOUR_KEYWORDS[token]
+
+    if extra_harbour_names:
+        normalized_name = re.sub(r"[^a-z]", "", name.lower())
+        for harbour_name in extra_harbour_names:
+            if re.sub(r"[^a-z]", "", harbour_name.lower()) == normalized_name:
+                return harbour_name
     return None
 
 
@@ -318,7 +334,7 @@ def _fetch_incois_pfz_rows(
     return rows, valid_to, source_updated_at
 
 
-def _fetch_real_pfz_advisories() -> list[dict] | None:
+def _fetch_real_pfz_advisories(extra_harbour_names: set[str] | None = None) -> list[dict] | None:
     """
     Returns None if the scrape itself failed (network error, page changed
     shape entirely) so the caller can log that distinctly from "scrape
@@ -329,8 +345,10 @@ def _fetch_real_pfz_advisories() -> list[dict] | None:
     what a person sees on their page directly) — earlier this filtered down
     to only the ~4-8 rows matching one of our 8 seeded harbours by name,
     which silently discarded the other 40+ real zones. A harbour label is
-    still attached where one of our 8 harbours genuinely matches, as extra
-    context, but it no longer gates whether a row is included at all.
+    attached wherever one of our known harbours genuinely matches (the
+    original 8, plus whatever the caller passes via extra_harbour_names —
+    see seed.py's PFZ_LANDING_CENTERS), as extra context, but it no longer
+    gates whether a row is included at all.
     """
     try:
         rows, parsed_valid_to, source_updated_at = _fetch_incois_pfz_rows()
@@ -344,7 +362,7 @@ def _fetch_real_pfz_advisories() -> list[dict] | None:
     valid_to = parsed_valid_to if parsed_valid_to and parsed_valid_to > now else now + timedelta(days=1)
     advisories = []
     for row in rows:
-        matched_harbour = _match_harbour_by_name(row["name"])
+        matched_harbour = _match_harbour_by_name(row["name"], extra_harbour_names)
 
         real_temp = _fetch_erddap_temperature(row["latitude"], row["longitude"])
         if real_temp is not None:
@@ -354,7 +372,11 @@ def _fetch_real_pfz_advisories() -> list[dict] | None:
             sea_surface_temp_c = round(random.uniform(26.0, 29.5), 1)
             temp_note = "mock temperature (no ERDDAP coverage here)"
 
-        harbour_suffix = f" (near {matched_harbour})" if matched_harbour else ""
+        # Skip the suffix when it would just restate the row's own name —
+        # true for most of the ~49 exact-match harbours (see
+        # _match_harbour_by_name), where it adds no information.
+        show_harbour_label = matched_harbour and matched_harbour.lower() != row["name"].lower()
+        harbour_suffix = f" (near {matched_harbour})" if show_harbour_label else ""
         advisories.append(
             {
                 "reference_point": f"{row['distance_km']} km {row['direction']} of {row['name']}{harbour_suffix}",
@@ -421,11 +443,11 @@ def _fetch_live() -> list[dict]:
         return resp.json()
 
 
-def get_pfz_advisories() -> list[dict]:
+def get_pfz_advisories(extra_harbour_names: set[str] | None = None) -> list[dict]:
     if settings.incois_api_base_url:
         return _fetch_live()
 
-    real = _fetch_real_pfz_advisories()
+    real = _fetch_real_pfz_advisories(extra_harbour_names)
     if real:
         return real
     return _build_mock_advisories()

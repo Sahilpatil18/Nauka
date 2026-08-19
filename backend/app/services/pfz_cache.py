@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 
+from app.models.harbour import Harbour
 from app.models.ocean import PFZAdvisory
 from app.services import incois_adapter
 
@@ -31,7 +32,11 @@ def refresh_pfz_cache_if_stale(db: Session) -> list[PFZAdvisory]:
     if fresh:
         return fresh
 
-    raw = incois_adapter.get_pfz_advisories()
+    # All currently-known harbours, not just the original 8 — see seed.py's
+    # PFZ_LANDING_CENTERS. The adapter still applies its own fuzzy aliasing
+    # for the original 8 on top of this exact-name set.
+    harbour_names = {name for (name,) in db.query(Harbour.name).all()}
+    raw = incois_adapter.get_pfz_advisories(extra_harbour_names=harbour_names)
     # This is a live snapshot, not a history table — drop the previous
     # cache entirely rather than accumulating rows forever alongside it.
     db.query(PFZAdvisory).delete()
