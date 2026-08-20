@@ -118,6 +118,37 @@ def test_fisherman_onboarding_and_catch_log_gate():
     assert len(logs.json()) == 1
 
 
+def test_pfz_near_harbour_sorts_by_live_then_distance():
+    harbours = client.get("/harbours").json()
+    karanja = next(h for h in harbours if h["name"] == "Karanja")
+
+    resp = client.get(f"/pfz/near-harbour/{karanja['id']}")
+    assert resp.status_code == 200, resp.text
+    results = resp.json()
+    assert len(results) > 0
+    for r in results:
+        assert r["distance_km"] > 0
+        assert isinstance(r["is_live"], bool)
+
+    # Live (real INCOIS) zones must all sort ahead of mock ones, and each
+    # group must itself be nearest-first.
+    live_flags = [r["is_live"] for r in results]
+    assert live_flags == sorted(live_flags, reverse=True)
+    for is_live in (True, False):
+        group = [r["distance_km"] for r in results if r["is_live"] == is_live]
+        assert group == sorted(group)
+
+    # A harbour scraped from INCOIS's landing-center list has no coordinates
+    # on file (seed.py deliberately doesn't fabricate them) — must fail
+    # clearly rather than silently computing a bogus distance.
+    vadarai = next(h for h in harbours if h["name"] == "Vadarai")
+    no_coords_resp = client.get(f"/pfz/near-harbour/{vadarai['id']}")
+    assert no_coords_resp.status_code == 404
+
+    missing_resp = client.get("/pfz/near-harbour/does-not-exist")
+    assert missing_resp.status_code == 404
+
+
 def test_first_ever_profile_save_with_docs_still_queues_for_review():
     # Regression test: submitting boat_registration_no on the very first PUT
     # (profile row doesn't exist yet) previously left document_status stuck

@@ -4,19 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "@/lib/session";
+import { useLanguage, type Language } from "@/lib/i18n";
 import Badge from "@/components/ui/Badge";
-
-const PUBLIC_LINKS = [
-  { href: "/pfz", label: "PFZ" },
-  { href: "/prices", label: "Prices" },
-];
-
-const ROLE_LINKS: Record<string, { href: string; label: string }[]> = {
-  admin: [
-    { href: "/admin/prices", label: "Price entry" },
-    { href: "/admin/verifications", label: "Verifications" },
-  ],
-};
 
 const KYC_TONE: Record<string, "slate" | "amber" | "green"> = {
   unverified: "slate",
@@ -24,11 +13,30 @@ const KYC_TONE: Record<string, "slate" | "amber" | "green"> = {
   full_kyc: "green",
 };
 
-const KYC_LABEL: Record<string, string> = {
-  unverified: "Unverified",
-  phone_verified: "Phone verified",
-  full_kyc: "KYC complete",
-};
+function LanguageSwitcher() {
+  const { language, setLanguage } = useLanguage();
+  const options: { value: Language; label: string }[] = [
+    { value: "en", label: "EN" },
+    { value: "mr", label: "मराठी" },
+  ];
+  return (
+    <div className="inline-flex rounded-lg border border-slate-300 p-0.5 bg-white text-xs">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => setLanguage(opt.value)}
+          className={[
+            "px-2.5 py-1 rounded-md font-medium transition-colors",
+            language === opt.value ? "bg-teal-600 text-white" : "text-slate-600 hover:bg-slate-50",
+          ].join(" ")}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function Logo() {
   return (
@@ -46,11 +54,28 @@ function Logo() {
 
 export default function Nav() {
   const { user, setUser, loading } = useSession();
+  const { t } = useLanguage();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const publicLinks = [
+    { href: "/pfz", label: t("nav.pfz") },
+    { href: "/prices", label: t("nav.prices") },
+  ];
+  const roleLinks: Record<string, { href: string; label: string }[]> = {
+    admin: [
+      { href: "/admin/prices", label: t("nav.price_entry") },
+      { href: "/admin/verifications", label: t("nav.verifications") },
+    ],
+  };
+  const kycLabel: Record<string, string> = {
+    unverified: t("nav.kyc.unverified"),
+    phone_verified: t("nav.kyc.phone_verified"),
+    full_kyc: t("nav.kyc.full_kyc"),
+  };
+
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
-  const roleLinks = user ? ROLE_LINKS[user.role] || [] : [];
+  const activeRoleLinks = user ? roleLinks[user.role] || [] : [];
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
@@ -59,7 +84,7 @@ export default function Nav() {
           <div className="flex items-center gap-8">
             <Logo />
             <nav className="hidden md:flex items-center gap-1">
-              {[...PUBLIC_LINKS, ...roleLinks].map((link) => (
+              {[...publicLinks, ...activeRoleLinks].map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
@@ -77,18 +102,19 @@ export default function Nav() {
           </div>
 
           <div className="hidden md:flex items-center gap-3">
+            <LanguageSwitcher />
             {!loading && user ? (
               <>
                 <div className="flex items-center gap-2 text-sm">
                   <span className="text-slate-600">{user.phone_number}</span>
                   <Badge tone="teal">{user.role}</Badge>
-                  <Badge tone={KYC_TONE[user.kyc_status]}>{KYC_LABEL[user.kyc_status]}</Badge>
+                  <Badge tone={KYC_TONE[user.kyc_status]}>{kycLabel[user.kyc_status]}</Badge>
                 </div>
                 <button
                   onClick={() => setUser(null)}
                   className="text-sm font-medium text-slate-500 hover:text-rose-600 transition-colors"
                 >
-                  Log out
+                  {t("nav.logout")}
                 </button>
               </>
             ) : (
@@ -97,7 +123,7 @@ export default function Nav() {
                   href="/login"
                   className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 transition-colors shadow-sm"
                 >
-                  Log in
+                  {t("nav.login")}
                 </Link>
               )
             )}
@@ -106,7 +132,7 @@ export default function Nav() {
           <button
             onClick={() => setMenuOpen((v) => !v)}
             className="md:hidden flex items-center justify-center h-9 w-9 rounded-lg text-slate-600 hover:bg-slate-100"
-            aria-label="Toggle menu"
+            aria-label={t("nav.toggle_menu")}
             aria-expanded={menuOpen}
           >
             {menuOpen ? (
@@ -123,7 +149,10 @@ export default function Nav() {
 
         {menuOpen && (
           <div className="md:hidden pb-4 space-y-1 border-t border-slate-100 pt-3">
-            {[...PUBLIC_LINKS, ...roleLinks].map((link) => (
+            <div className="px-3 pt-3">
+              <LanguageSwitcher />
+            </div>
+            {[...publicLinks, ...activeRoleLinks].map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -141,7 +170,7 @@ export default function Nav() {
                 <div className="px-3 flex items-center gap-2 flex-wrap text-sm">
                   <span className="text-slate-600">{user.phone_number}</span>
                   <Badge tone="teal">{user.role}</Badge>
-                  <Badge tone={KYC_TONE[user.kyc_status]}>{KYC_LABEL[user.kyc_status]}</Badge>
+                  <Badge tone={KYC_TONE[user.kyc_status]}>{kycLabel[user.kyc_status]}</Badge>
                 </div>
                 <button
                   onClick={() => {
@@ -150,7 +179,7 @@ export default function Nav() {
                   }}
                   className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-rose-600 hover:bg-rose-50"
                 >
-                  Log out
+                  {t("nav.logout")}
                 </button>
               </div>
             ) : (
@@ -160,7 +189,7 @@ export default function Nav() {
                   onClick={() => setMenuOpen(false)}
                   className="block mx-3 mt-2 rounded-lg bg-teal-600 px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-teal-700"
                 >
-                  Log in
+                  {t("nav.login")}
                 </Link>
               )
             )}

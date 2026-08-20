@@ -4,17 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { requestOtp, verifyOtp, ApiError, UserRole } from "@/lib/api";
 import { useSession } from "@/lib/session";
+import { useLanguage } from "@/lib/i18n";
 import { Card } from "@/components/ui/Card";
 import { Label, inputClass, ErrorText, HelpText } from "@/components/ui/Field";
 import Button from "@/components/ui/Button";
-
-const ROLES: { value: UserRole; label: string; description: string }[] = [
-  { value: "fisherman", label: "Fisherman / Boat Owner", description: "Log catches, view PFZ & prices" },
-  { value: "vendor", label: "Equipment & Gear Vendor", description: "List and sell marine equipment" },
-  { value: "buyer", label: "Exporter / B2B Buyer", description: "Source from vendors, request quotes" },
-  { value: "cooperative", label: "Fisheries Cooperative Society", description: "Register your society" },
-  { value: "admin", label: "Admin / Field Agent", description: "Enter harbour price data" },
-];
 
 const ROLE_HOME: Record<string, string> = {
   fisherman: "/fisherman/onboarding",
@@ -27,6 +20,15 @@ const ROLE_HOME: Record<string, string> = {
 export default function LoginPage() {
   const router = useRouter();
   const { setUser } = useSession();
+  const { t } = useLanguage();
+
+  const ROLES: { value: UserRole; label: string; description: string }[] = [
+    { value: "fisherman", label: t("login.role.fisherman"), description: t("login.role.fisherman_desc") },
+    { value: "vendor", label: t("login.role.vendor"), description: t("login.role.vendor_desc") },
+    { value: "buyer", label: t("login.role.buyer"), description: t("login.role.buyer_desc") },
+    { value: "cooperative", label: t("login.role.cooperative"), description: t("login.role.cooperative_desc") },
+    { value: "admin", label: t("login.role.admin"), description: t("login.role.admin_desc") },
+  ];
 
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [phone, setPhone] = useState("");
@@ -45,7 +47,7 @@ export default function LoginPage() {
       setDevNote(res.note);
       setStep("otp");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not reach the API");
+      setError(err instanceof ApiError ? err.message : t("common.error_network"));
     } finally {
       setSubmitting(false);
     }
@@ -60,7 +62,7 @@ export default function LoginPage() {
       setUser(user);
       router.push(ROLE_HOME[user.role] || "/");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not reach the API");
+      setError(err instanceof ApiError ? err.message : t("common.error_network"));
     } finally {
       setSubmitting(false);
     }
@@ -76,9 +78,9 @@ export default function LoginPage() {
               <path d="M5 17V9l6-4 6 4v8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
-          <h1 className="text-xl font-semibold text-slate-900">Log in to Nauka</h1>
+          <h1 className="text-xl font-semibold text-slate-900">{t("login.title")}</h1>
           <p className="text-sm text-slate-500 mt-1">
-            {step === "phone" ? "Enter your phone number to get started" : `Code sent to ${phone}`}
+            {step === "phone" ? t("login.subtitle_phone") : t("login.subtitle_otp", { phone })}
           </p>
         </div>
 
@@ -86,7 +88,7 @@ export default function LoginPage() {
           {step === "phone" && (
             <form onSubmit={handleRequestOtp} className="space-y-4">
               <div>
-                <Label htmlFor="phone">Phone number</Label>
+                <Label htmlFor="phone">{t("login.phone_label")}</Label>
                 <input
                   id="phone"
                   type="tel"
@@ -98,7 +100,7 @@ export default function LoginPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="role">I am a...</Label>
+                <Label htmlFor="role">{t("login.role_label")}</Label>
                 <select
                   id="role"
                   value={role}
@@ -114,16 +116,16 @@ export default function LoginPage() {
               </div>
               {error && <ErrorText>{error}</ErrorText>}
               <Button type="submit" loading={submitting} fullWidth>
-                {submitting ? "Sending..." : "Send OTP"}
+                {submitting ? t("login.sending") : t("login.send_otp")}
               </Button>
             </form>
           )}
 
           {step === "otp" && (
             <form onSubmit={handleVerify} className="space-y-4">
-              {devNote && <HelpText>Dev mode: {devNote}. Check the backend server logs for the 6-digit code.</HelpText>}
+              {devNote && <HelpText>{t("login.dev_note", { note: devNote })}</HelpText>}
               <div>
-                <Label htmlFor="code">Enter OTP</Label>
+                <Label htmlFor="code">{t("login.otp_label")}</Label>
                 <input
                   id="code"
                   type="text"
@@ -137,14 +139,14 @@ export default function LoginPage() {
               </div>
               {error && <ErrorText>{error}</ErrorText>}
               <Button type="submit" loading={submitting} fullWidth>
-                {submitting ? "Verifying..." : "Verify & continue"}
+                {submitting ? t("login.verifying") : t("login.verify")}
               </Button>
               <button
                 type="button"
                 onClick={() => setStep("phone")}
                 className="w-full text-sm text-slate-500 hover:text-slate-700 transition-colors"
               >
-                Use a different number
+                {t("login.use_different_number")}
               </button>
             </form>
           )}

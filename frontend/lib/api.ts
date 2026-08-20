@@ -97,6 +97,11 @@ export interface PFZAdvisory {
   source: string;
 }
 
+export interface PFZAdvisoryWithDistance extends PFZAdvisory {
+  distance_km: number;
+  is_live: boolean;
+}
+
 export type BoatType = "mechanized" | "motorized" | "traditional";
 
 export interface FishermanProfile {
@@ -192,6 +197,8 @@ export const submitKyc = (userId: string, aadhaar_last4?: string) =>
 export const listHarbours = () => request<Harbour[]>("/harbours");
 export const listCategories = () => request<Category[]>("/catalog/categories");
 export const getPfz = () => request<PFZAdvisory[]>("/pfz");
+export const getPfzNearHarbour = (harbourId: string) =>
+  request<PFZAdvisoryWithDistance[]>(`/pfz/near-harbour/${harbourId}`);
 export const getPriceIndex = (species?: string, harbourId?: string) => {
   const params = new URLSearchParams();
   if (species) params.set("species", species);

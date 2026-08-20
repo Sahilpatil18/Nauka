@@ -2,38 +2,38 @@
 
 import Link from "next/link";
 import { useSession } from "@/lib/session";
+import { useLanguage } from "@/lib/i18n";
 import { Card } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 
-const ROLE_LINKS: Record<string, { dashboard?: string; onboarding?: string; label: string }> = {
-  fisherman: { dashboard: "/fisherman/dashboard", onboarding: "/fisherman/onboarding", label: "Fisherman" },
-  vendor: { dashboard: "/vendor/dashboard", onboarding: "/vendor/onboarding", label: "Vendor" },
-  buyer: { dashboard: "/buyer/dashboard", onboarding: "/buyer/onboarding", label: "Buyer" },
-  cooperative: { onboarding: "/cooperative/onboarding", label: "Cooperative" },
-  admin: { dashboard: "/admin/prices", label: "Admin" },
+const ROLE_LINKS: Record<string, { dashboard?: string; onboarding?: string }> = {
+  fisherman: { dashboard: "/fisherman/dashboard", onboarding: "/fisherman/onboarding" },
+  vendor: { dashboard: "/vendor/dashboard", onboarding: "/vendor/onboarding" },
+  buyer: { dashboard: "/buyer/dashboard", onboarding: "/buyer/onboarding" },
+  cooperative: { onboarding: "/cooperative/onboarding" },
+  admin: { dashboard: "/admin/prices" },
 };
 
-const FEATURES = [
-  {
-    href: "/pfz",
-    icon: (
-      <path d="M3 17c1.5 1.5 3.5 1.5 5 0s3.5-1.5 5 0 3.5 1.5 5 0M12 3v8m0 0l-3-3m3 3l3-3" strokeLinecap="round" strokeLinejoin="round" />
-    ),
-    title: "Potential Fishing Zones",
-    description: "INCOIS-fed PFZ coordinates with sea surface temperature and chlorophyll overlays.",
-  },
-  {
-    href: "/prices",
-    icon: (
-      <path d="M3 3v18h18M8 17V9m5 8V5m5 12v-6" strokeLinecap="round" strokeLinejoin="round" />
-    ),
-    title: "Harbour Price Index",
-    description: "Daily species landing prices across 8 Maharashtra harbours, with a 7-day trend.",
-  },
-];
+const PFZ_ICON = (
+  <path d="M3 17c1.5 1.5 3.5 1.5 5 0s3.5-1.5 5 0 3.5 1.5 5 0M12 3v8m0 0l-3-3m3 3l3-3" strokeLinecap="round" strokeLinejoin="round" />
+);
+const PRICES_ICON = <path d="M3 3v18h18M8 17V9m5 8V5m5 12v-6" strokeLinecap="round" strokeLinejoin="round" />;
 
 export default function Home() {
   const { user, loading } = useSession();
+  const { t } = useLanguage();
+
+  const FEATURES = [
+    { href: "/pfz", icon: PFZ_ICON, title: t("home.feature_pfz_title"), description: t("home.feature_pfz_desc") },
+    { href: "/prices", icon: PRICES_ICON, title: t("home.feature_prices_title"), description: t("home.feature_prices_desc") },
+  ];
+
+  const VALUE_CHAIN_ROLES = [
+    { role: t("home.role_fisherman"), desc: t("home.role_fisherman_desc") },
+    { role: t("home.role_vendor"), desc: t("home.role_vendor_desc") },
+    { role: t("home.role_buyer"), desc: t("home.role_buyer_desc") },
+    { role: t("home.role_cooperative"), desc: t("home.role_cooperative_desc") },
+  ];
 
   return (
     <div className="space-y-10">
@@ -41,18 +41,11 @@ export default function Home() {
         <div className="absolute inset-0 opacity-10 [background-image:radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] [background-size:24px_24px]" />
         <div className="relative max-w-2xl">
           <span className="inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-teal-50 ring-1 ring-inset ring-white/25">
-            Phase 1 · Maharashtra
+            {t("home.badge")}
           </span>
-          <h1 className="mt-4 text-3xl sm:text-4xl font-semibold tracking-tight">
-            The digital bridge for Maharashtra&apos;s marine sector
-          </h1>
-          <p className="mt-3 text-teal-50/90 text-base sm:text-lg">
-            Connecting fishermen &amp; societies, equipment vendors, and institutional buyers with
-            real-time ocean intelligence — PFZ advisories and harbour landing prices in one place.
-          </p>
-          <p className="mt-2 text-sm text-teal-100/70">
-            One web portal for fishermen, cooperative societies, equipment vendors, and buyers.
-          </p>
+          <h1 className="mt-4 text-3xl sm:text-4xl font-semibold tracking-tight">{t("home.title")}</h1>
+          <p className="mt-3 text-teal-50/90 text-base sm:text-lg">{t("home.subtitle")}</p>
+          <p className="mt-2 text-sm text-teal-100/70">{t("home.tagline")}</p>
 
           {!loading && (
             <div className="mt-6 flex flex-wrap gap-3">
@@ -61,7 +54,7 @@ export default function Home() {
                   {ROLE_LINKS[user.role]?.dashboard && (
                     <Link href={ROLE_LINKS[user.role].dashboard!}>
                       <Button variant="secondary" className="!bg-white !text-teal-700 hover:!bg-teal-50">
-                        Go to dashboard
+                        {t("home.go_dashboard")}
                       </Button>
                     </Link>
                   )}
@@ -71,7 +64,7 @@ export default function Home() {
                         variant="ghost"
                         className="!text-white border border-white/40 hover:!bg-white/10"
                       >
-                        Complete profile
+                        {t("home.complete_profile")}
                       </Button>
                     </Link>
                   )}
@@ -79,7 +72,7 @@ export default function Home() {
               ) : (
                 <Link href="/login">
                   <Button variant="secondary" className="!bg-white !text-teal-700 hover:!bg-teal-50">
-                    Log in with phone OTP
+                    {t("home.login_cta")}
                   </Button>
                 </Link>
               )}
@@ -110,15 +103,10 @@ export default function Home() {
 
       <section>
         <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4">
-          Built for the marine value chain
+          {t("home.built_for")}
         </h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { role: "Fishermen", desc: "Log catches, track history, check PFZ and prices." },
-            { role: "Vendors", desc: "List equipment, manage stock, respond to RFQs." },
-            { role: "Buyers & exporters", desc: "Source from vendors, request quotes, track sourcing." },
-            { role: "Cooperative societies", desc: "Register your society and harbour hub." },
-          ].map((r) => (
+          {VALUE_CHAIN_ROLES.map((r) => (
             <Card key={r.role} className="bg-slate-50/60 border-dashed">
               <h3 className="font-medium text-slate-900">{r.role}</h3>
               <p className="text-sm text-slate-500 mt-1">{r.desc}</p>

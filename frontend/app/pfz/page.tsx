@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { getPfz, PFZAdvisory, ApiError } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 import { Card } from "@/components/ui/Card";
 import { ErrorText, HelpText, inputClass } from "@/components/ui/Field";
 import { EmptyState, LoadingRows } from "@/components/ui/EmptyState";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
+import NearestZones from "@/components/NearestZones";
 
 // MapLibre needs the DOM/WebGL — never render it during SSR.
 const PfzMap = dynamic(() => import("@/components/PfzMap"), {
@@ -19,13 +21,13 @@ const PfzMap = dynamic(() => import("@/components/PfzMap"), {
   ),
 });
 
-function formatValidityDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+function formatValidityDate(iso: string, locale: string) {
+  return new Date(iso).toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" });
 }
 
-function formatSourceUpdatedAt(iso: string) {
+function formatSourceUpdatedAt(iso: string, locale: string) {
   return (
-    new Date(iso).toLocaleString("en-IN", {
+    new Date(iso).toLocaleString(locale, {
       timeZone: "Asia/Kolkata",
       day: "2-digit",
       month: "2-digit",
@@ -38,12 +40,14 @@ function formatSourceUpdatedAt(iso: string) {
   );
 }
 
-function dataQualityBadge(a: PFZAdvisory) {
-  const zoneIsReal = a.source.includes("real PFZ advisory");
-  return zoneIsReal ? <Badge tone="green">Live</Badge> : <Badge tone="slate">Mock</Badge>;
-}
-
 export default function PfzPage() {
+  const { t, language } = useLanguage();
+  const locale = language === "mr" ? "mr-IN" : "en-IN";
+  const dataQualityBadge = (a: PFZAdvisory) => {
+    const zoneIsReal = a.source.includes("real PFZ advisory");
+    return zoneIsReal ? <Badge tone="green">{t("pfz.badge_live")}</Badge> : <Badge tone="slate">{t("pfz.badge_mock")}</Badge>;
+  };
+
   const [advisories, setAdvisories] = useState<PFZAdvisory[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -53,9 +57,9 @@ export default function PfzPage() {
   useEffect(() => {
     getPfz()
       .then(setAdvisories)
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Could not reach the API"))
+      .catch((err) => setError(err instanceof ApiError ? err.message : t("common.error_network")))
       .finally(() => setLoading(false));
-  }, []);
+  }, [t]);
 
   const query = search.trim().toLowerCase();
   const filteredAdvisories = query
@@ -65,34 +69,34 @@ export default function PfzPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">Potential Fishing Zones</h1>
+        <h1 className="text-xl font-semibold text-slate-900">{t("pfz.title")}</h1>
         <p className="text-sm text-slate-500 mt-1">
-          Every zone INCOIS currently publishes for Maharashtra
-          {advisories.length > 0 && ` — ${advisories.length} zones`}. Rows near one of our named
-          harbours are labeled where that adds real information; the rest are shown as-is.
+          {advisories.length > 0
+            ? t("pfz.subtitle_with_count", { count: advisories.length })
+            : t("pfz.subtitle_no_count")}
         </p>
       </div>
 
+      <NearestZones showViewAllLink={false} />
+
       {advisories.length > 0 && (
         <div className="rounded-xl border-2 border-amber-300 bg-amber-50 px-6 py-4 text-center">
-          <p className="text-sm font-bold uppercase tracking-wide text-slate-800">Maharashtra</p>
+          <p className="text-sm font-bold uppercase tracking-wide text-slate-800">{t("pfz.banner_state")}</p>
           <p className="text-sm font-bold uppercase tracking-wide text-slate-800 mt-1">
-            Forecast validity from {formatValidityDate(advisories[0].valid_from)} to{" "}
-            {formatValidityDate(advisories[0].valid_to)}
+            {t("pfz.banner_validity", {
+              from: formatValidityDate(advisories[0].valid_from, locale),
+              to: formatValidityDate(advisories[0].valid_to, locale),
+            })}
           </p>
           {advisories[0].source_updated_at && (
             <p className="text-xs font-medium text-amber-700 mt-2">
-              INCOIS data updated on: {formatSourceUpdatedAt(advisories[0].source_updated_at)}
+              {t("pfz.banner_updated", { time: formatSourceUpdatedAt(advisories[0].source_updated_at, locale) })}
             </p>
           )}
         </div>
       )}
 
-      <HelpText>
-        Zone position/bearing/distance is pulled live from INCOIS&apos;s public advisory page where
-        available; not every zone has real data, so some rows fall back to a clearly-marked
-        estimate — check the badge on each row, and hover it for the exact source.
-      </HelpText>
+      <HelpText>{t("pfz.help_text")}</HelpText>
 
       {error && <ErrorText>{error}</ErrorText>}
 
@@ -103,7 +107,7 @@ export default function PfzPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by coast name (e.g. Satpati, Arnala)"
+              placeholder={t("pfz.search_placeholder")}
               className={inputClass}
             />
           </div>
@@ -114,10 +118,10 @@ export default function PfzPage() {
               variant={view === "table" ? "primary" : "ghost"}
               onClick={() => setView("table")}
             >
-              Table
+              {t("pfz.table_view")}
             </Button>
             <Button type="button" size="sm" variant={view === "map" ? "primary" : "ghost"} onClick={() => setView("map")}>
-              Map
+              {t("pfz.map_view")}
             </Button>
           </div>
         </div>
@@ -127,11 +131,11 @@ export default function PfzPage() {
         <LoadingRows count={4} />
       ) : advisories.length === 0 ? (
         <Card>
-          <EmptyState title="No advisories available" />
+          <EmptyState title={t("pfz.no_advisories")} />
         </Card>
       ) : filteredAdvisories.length === 0 ? (
         <Card>
-          <EmptyState title="No matching coast" description={`Nothing matches "${search}" — try a different name.`} />
+          <EmptyState title={t("pfz.no_match_title")} description={t("pfz.no_match_desc", { search })} />
         </Card>
       ) : view === "map" ? (
         <PfzMap advisories={filteredAdvisories} />
@@ -141,14 +145,14 @@ export default function PfzPage() {
             <table className="w-full text-sm min-w-[920px]">
               <thead className="sticky top-0 z-10 bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">
                 <tr>
-                  <th className="px-4 sm:px-5 py-3">From the coast of</th>
-                  <th className="px-4 sm:px-5 py-3">Direction</th>
-                  <th className="px-4 sm:px-5 py-3 text-right">Bearing (deg)</th>
-                  <th className="px-4 sm:px-5 py-3 text-right">Distance (km) From-To</th>
-                  <th className="px-4 sm:px-5 py-3 text-right">Depth (mtr) From-To</th>
-                  <th className="px-4 sm:px-5 py-3">Latitude (dms)</th>
-                  <th className="px-4 sm:px-5 py-3">Longitude (dms)</th>
-                  <th className="px-4 sm:px-5 py-3">Data</th>
+                  <th className="px-4 sm:px-5 py-3">{t("pfz.col_from_coast")}</th>
+                  <th className="px-4 sm:px-5 py-3">{t("pfz.col_direction")}</th>
+                  <th className="px-4 sm:px-5 py-3 text-right">{t("pfz.col_bearing")}</th>
+                  <th className="px-4 sm:px-5 py-3 text-right">{t("pfz.col_distance")}</th>
+                  <th className="px-4 sm:px-5 py-3 text-right">{t("pfz.col_depth")}</th>
+                  <th className="px-4 sm:px-5 py-3">{t("pfz.col_latitude")}</th>
+                  <th className="px-4 sm:px-5 py-3">{t("pfz.col_longitude")}</th>
+                  <th className="px-4 sm:px-5 py-3">{t("pfz.col_data")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">

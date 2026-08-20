@@ -25,3 +25,8 @@ class PFZAdvisoryOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class PFZAdvisoryWithDistance(PFZAdvisoryOut):
+    distance_km: float
+    is_live: bool
